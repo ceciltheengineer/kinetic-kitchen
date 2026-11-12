@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kinetic Kitchen</title>
+<!-- Montserrat loads without blocking. On the ESP32 hotspot (no internet) it falls back to system-ui. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" media="print" onload="this.media='all'">
+<style>
+/* Kinetic Kitchen design system, Blue theme. Poster units scaled ~0.45 for screen. */
+:root{
+  --brand:#5170ff;--brand-deep:#1b2a6b;--paper:#ffffff;--ink:#000000;
+  --tint:#eef1ff;                          /* brand at ~10% on paper: control and tile ground */
+  --muted:rgba(27,42,107,.72);             /* brand-deep for secondary text, 6:1 on paper */
+  /* Status signals. Not in the poster palette; used only to mean state, never decoration. */
+  --ok:#0f7a4a;--warn:#a45600;--err:#d01f1f;
+  --radius:28px;--inset:20px;--gap:16px;--rule:7px;
+  --track:.18em;
+  --font:Montserrat,system-ui,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.45 var(--font);background:var(--brand);color:var(--ink);
+  display:grid;grid-template-columns:190px 1fr;min-height:100vh}
+
+/* ---------- paper margin column: the words ---------- */
+.margin{background:var(--paper);align-self:start;position:sticky;top:0;height:100vh;display:flex;justify-content:center;align-items:center;overflow:hidden}
+.margin .stack{writing-mode:vertical-rl;transform:rotate(180deg);display:flex;flex-direction:column;align-items:center;gap:14px;white-space:nowrap}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.186em;color:var(--brand-deep);text-transform:uppercase;margin:0}
+h1{font-weight:400;font-size:clamp(44px,7.4vh,72px);line-height:1;color:var(--brand);margin:0;letter-spacing:0}
+.rule{background:var(--brand);border-radius:0;align-self:stretch}
+.margin .rule{block-size:var(--rule);align-self:stretch}
+.tagline{font-size:12px;font-weight:700;letter-spacing:.29em;color:var(--ink);text-transform:uppercase;margin:0}
+
+/* ---------- brand band: the blocks ---------- */
+.band{padding:var(--inset);min-width:0}
+.slab{background:var(--brand-deep);color:var(--paper);border-radius:var(--radius);padding:14px 24px;
+  display:flex;flex-wrap:wrap;gap:6px 26px;align-items:center;max-width:1180px;margin:0 auto var(--gap)}
+.meta,.badge{font-size:12px;letter-spacing:var(--track);text-transform:uppercase;white-space:nowrap}
+.meta b{font-weight:700}
+.badge{font-weight:700}
+.badge.on::before,.badge.off::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:1px;background:var(--ok)}
+.badge.off::before{background:var(--err)}
+.badge.sim{background:var(--paper);color:var(--brand-deep);padding:3px 12px;border-radius:999px}
+#foot{margin-left:auto;opacity:.8}
+
+main{display:grid;grid-template-columns:minmax(240px,320px) 1fr;grid-template-rows:auto auto auto auto auto 1fr;gap:var(--gap);max-width:1180px;margin:0 auto;
+  grid-template-areas:"conv estop" "conv route" "conv status" "conv boxes" "conv bring" "conv log"}
+.card{background:var(--paper);border-radius:var(--radius);padding:22px 24px;align-self:start;min-width:0}
+.card.deep{background:var(--brand-deep);color:var(--paper)}
+#c-conv{grid-area:conv}#c-route{grid-area:route}#c-status{grid-area:status}#c-boxes{grid-area:boxes}#c-bring{grid-area:bring}#c-log{grid-area:log}#estop{grid-area:estop}
+.card h2,details summary{font-size:12px;font-weight:700;margin:0 0 14px;color:var(--brand-deep);text-transform:uppercase;letter-spacing:var(--track)}
+.card.deep h2{color:var(--paper)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.lbl{color:var(--muted);width:64px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:var(--track)}
+.muted{color:var(--muted);font-size:13px}
+
+/* controls: flat pills, no borders, no shadows */
+button{font:inherit;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:10px 16px;border-radius:999px;border:0;
+  background:var(--tint);color:var(--brand-deep);cursor:pointer}
+button:hover:not(:disabled){background:#dfe5ff}
+button:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+button:disabled{opacity:.35;cursor:not-allowed}
+button.sel{background:var(--brand-deep);color:var(--paper)}
+button.primary{background:var(--brand);color:var(--paper);font-size:19px;letter-spacing:.186em;padding:12px 34px}
+button.primary:hover:not(:disabled){background:#3f60f5}
+button.danger{background:var(--err);color:var(--paper);font-size:19px;letter-spacing:.186em;padding:12px 34px}
+button.danger:hover:not(:disabled){background:#b81717}
+button.small{padding:7px 13px;font-size:12px}
+a:has(button){text-decoration:none}
+
+.pill{display:inline-block;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap}
+.pill.idle{background:var(--tint);color:var(--brand-deep)}
+.pill.run{background:var(--brand-deep);color:var(--paper)}
+.pill.ok{background:var(--ok);color:var(--paper)}
+.pill.err{background:var(--err);color:var(--paper)}
+.pill.warn{background:var(--warn);color:var(--paper)}
+.card.deep .pill.idle,.card.deep .pill.run{background:var(--paper);color:var(--brand-deep)}
+#msg{font-weight:700}
+.card.deep .muted{color:rgba(255,255,255,.75)}
+.bar{height:10px;background:rgba(255,255,255,.18);border-radius:999px;overflow:hidden;margin-top:14px}
+.bar i{display:block;height:100%;background:var(--paper);border-radius:999px;width:0;transition:width .3s}
+
+.boxes{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.box{background:var(--tint);border-radius:20px;padding:14px}
+.box .t{font-weight:700;font-size:12px;letter-spacing:var(--track);text-transform:uppercase;color:var(--brand-deep);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px}
+.box .t>span:first-child{white-space:nowrap}
+.box .g{font-size:28px;font-weight:700;margin:6px 0 0;color:var(--brand-deep)}
+.box .row button{background:var(--paper)}
+.box .row button:hover{background:#fafbff}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 10px;white-space:nowrap}
+th{color:var(--brand-deep);font-weight:700;font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+tbody tr:nth-child(odd){background:var(--tint)}
+tbody td:first-child{border-radius:999px 0 0 999px}
+tbody td:last-child{border-radius:0 999px 999px 0}
+
+/* conveyor diagram */
+svg{width:100%;height:auto;display:block;max-height:78vh}
+.sv-box{cursor:pointer}
+.sv-box rect{fill:var(--tint)}
+.sv-box.free rect{fill:var(--ok);fill-opacity:.2}
+.sv-box.occupied rect{fill:var(--err);fill-opacity:.24}
+.sv-box.check rect{fill:var(--warn);fill-opacity:.26}
+.sv-box.sel rect{fill:var(--brand);fill-opacity:1}
+.sv-box text{fill:var(--brand-deep);font-family:var(--font);font-weight:700;font-size:18px;text-anchor:middle;dominant-baseline:middle;pointer-events:none}
+.sv-box.sel text{fill:var(--paper)}
+.sv-start{cursor:pointer}
+.sv-start circle{fill:var(--paper)}
+.sv-start.sel circle{fill:var(--brand)}
+.sv-start text{fill:var(--brand-deep);font-family:var(--font);font-weight:700;font-size:14px;text-anchor:middle;dominant-baseline:middle;pointer-events:none}
+.sv-start.sel text{fill:var(--paper)}
+.belt{fill:var(--brand-deep)}
+.stripes line{stroke:var(--brand);stroke-width:3;stroke-dasharray:8 14}
+.moving-f .stripes line{animation:belt .6s linear infinite}
+.moving-r .stripes line{animation:belt .6s linear infinite reverse}
+@keyframes belt{to{stroke-dashoffset:-22}}
+.arm{stroke:var(--brand);stroke-width:8;stroke-linecap:round}
+.part{fill:var(--paper);stroke:var(--brand);stroke-width:4}
+
+details summary{margin:0;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"+";font-size:18px;line-height:1}
+details[open] summary::after{content:"\2212"}
+input[type=number]{font:inherit;font-weight:700;padding:8px 14px;border-radius:999px;border:0;background:var(--tint);color:var(--brand-deep);width:110px}
+input[type=number]:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--brand-deep);color:var(--paper);padding:12px 22px;border-radius:999px;font-size:14px;font-weight:700;z-index:5}
+.estop{background:var(--err);color:var(--paper);padding:18px 24px;border-radius:var(--radius);font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:14px}
+
+/* ---------- narrow screens: margin becomes a top strip ---------- */
+@media(max-width:900px){
+  body{grid-template-columns:1fr}
+  .margin{position:static;height:auto;padding:18px var(--inset) 16px}
+  .margin .stack{writing-mode:horizontal-tb;transform:none;flex-direction:column;align-items:flex-start;gap:8px;white-space:normal;width:100%}
+  .margin .rule{block-size:5px;align-self:stretch}
+  h1{font-size:40px}
+}
+@media(max-width:760px){
+  :root{--inset:12px;--gap:12px;--radius:22px}
+  main{grid-template-columns:1fr;grid-template-rows:none;grid-template-areas:"estop" "route" "conv" "status" "boxes" "bring" "log"}
+  svg{max-height:60vh}
+  .card{padding:18px}
+  #foot{margin-left:0}
+  button.primary,button.danger{font-size:17px;padding:12px 26px}
+}
+</style>
+</head>
+<body>
+<aside class="margin">
+  <div class="stack">
+    <p class="eyebrow">Expoingenierias Dec 2026</p>
+    <h1>Kinetic Kitchen</h1>
+    <div class="rule" aria-hidden="true"></div>
+    <p class="tagline">Task force of the future</p>
+  </div>
+</aside>
+
+<div class="band">
+<header class="slab">
+  <span id="b-link" class="meta badge off">connecting</span>
+  <span id="b-sim" class="meta badge sim" hidden>Simulation</span>
+  <span id="b-wifi" class="meta"></span>
+  <span id="foot" class="meta"></span>
+</header>
+
+<main>
+    <div class="card" id="c-conv">
+      <h2>Conveyor</h2>
+      <svg id="svg" viewBox="0 0 300 660" aria-label="Conveyor layout"></svg>
+      <p class="muted" style="margin:12px 0 0">Tap a start position and a box, then Run.</p>
+    </div>
+
+    <div id="estop" class="estop" hidden>Emergency stop is pressed. Release it to continue.</div>
+
+    <div class="card" id="c-route">
+      <h2>Route</h2>
+      <div class="row"><span class="lbl">Start</span><div id="starts" class="row"></div></div>
+      <div class="row" style="margin-top:10px"><span class="lbl">Box</span><div id="boxbtns" class="row"></div></div>
+      <div class="row" style="margin-top:18px">
+        <button id="run" class="primary" disabled>Run</button>
+        <button id="stop" class="danger">Stop</button>
+        <span id="sel" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="card deep" id="c-status">
+      <h2>Status</h2>
+      <div class="row"><span id="state" class="pill idle">idle</span><span id="msg"></span><span id="elapsed" class="muted"></span></div>
+      <div class="bar"><i id="prog"></i></div>
+    </div>
+
+    <div class="card" id="c-boxes">
+      <h2>Boxes</h2>
+      <div id="boxes" class="boxes"></div>
+    </div>
+
+    <div class="card" id="c-bring">
+      <details>
+        <summary>Bring-up and testing</summary>
+        <div class="row" style="margin-top:16px"><span class="lbl">Belt</span>
+          <button class="small" data-jog="-200">&minus;200 mm</button>
+          <button class="small" data-jog="-50">&minus;50 mm</button>
+          <button class="small" data-jog="50">+50 mm</button>
+          <button class="small" data-jog="200">+200 mm</button>
+          <button class="small" id="motoroff">Motor off</button>
+        </div>
+        <div class="row" style="margin-top:10px"><span class="lbl">Arms</span><span id="armbtns" class="row"></span></div>
+        <div id="calib" style="margin-top:10px"></div>
+        <p class="muted" style="margin:14px 0 0">Positive jog moves the belt toward box 5. Calibrate: tare the empty box, put a known mass in it, enter its grams and press Calibrate.</p>
+      </details>
+    </div>
+
+    <div class="card" id="c-log">
+      <h2>Run log <span id="logcount" class="muted"></span></h2>
+      <div class="row" style="margin-bottom:12px">
+        <a href="/api/log.csv" download><button class="small">Download CSV</button></a>
+        <button class="small" id="logclear">Clear log</button>
+      </div>
+      <div style="overflow:auto"><table>
+        <thead><tr><th>#</th><th>Start</th><th>Box</th><th>Result</th><th>Time</th><th>g before</th><th>g after</th><th>Belt</th></tr></thead>
+        <tbody id="logbody"></tbody>
+      </table></div>
+    </div>
+</main>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const BUSY = ['arm_out', 'running', 'settling', 'arm_in'];
+const SVG = 'http://www.w3.org/2000/svg';
+const Y0 = 70, Y1 = 590;
+let st = null, sel = { start: 0, box: 0 }, svgBuilt = false, cardsBuilt = false;
+let LO = 0, HI = 1, lastLogCount = -1;
+
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(SVG, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function btn(text, cls, onclick) {
+  const b = document.createElement('button');
+  b.textContent = text; b.className = cls || ''; b.onclick = onclick;
+  return b;
+}
+function toast(t) {
+  const d = $('#toast'); d.textContent = t; d.hidden = false;
+  clearTimeout(d._t); d._t = setTimeout(() => d.hidden = true, 2500);
+}
+async function post(url) {
+  try {
+    const r = await fetch(url, { method: 'POST' });
+    let j = {}; try { j = await r.json(); } catch (e) {}
+    if (!r.ok) toast(j.error || ('Error ' + r.status));
+    return r.ok;
+  } catch (e) { toast('No connection to the ESP32'); return false; }
+}
+const mmY = mm => Y0 + (mm - LO) * (Y1 - Y0) / (HI - LO);
+const busy = () => st && BUSY.includes(st.route.state);
+
+// ---------- conveyor drawing ----------
+function mkBox(svg, id, x, y, w, h) {
+  const g = el('g', { class: 'sv-box', id: 'svb' + id }, svg);
+  el('rect', { x, y, width: w, height: h, rx: 8 }, g);
+  el('text', { x: x + w / 2, y: y + h / 2 }, g).textContent = id;
+  g.onclick = () => pickBox(id);
+}
+function buildSvg(geom) {
+  const svg = $('#svg'); svg.innerHTML = '';
+  LO = geom.boxes[0]; HI = geom.boxes[4];
+  el('rect', { x: 110, y: Y0, width: 80, height: Y1 - Y0, rx: 6, class: 'belt' }, svg);
+  const stripes = el('g', { class: 'stripes' }, svg);
+  for (const x of [128, 150, 172]) el('line', { x1: x, y1: Y0 + 6, x2: x, y2: Y1 - 6 }, stripes);
+  mkBox(svg, 1, 110, 10, 80, 55);
+  mkBox(svg, 5, 110, 595, 80, 55);
+  for (const b of [2, 3, 4]) {
+    const cy = mmY(geom.boxes[b - 1]);
+    mkBox(svg, b, 15, cy - 55, 85, 110);
+    el('line', { x1: 110, y1: cy + 50, x2: 110, y2: cy - 60, class: 'arm', id: 'arm' + b }, svg);
+  }
+  for (let s = 1; s <= 3; s++) {
+    const cy = mmY(geom.starts[s - 1]);
+    const g = el('g', { class: 'sv-start', id: 'svs' + s }, svg);
+    el('circle', { cx: 150, cy, r: 22 }, g);
+    el('text', { x: 150, y: cy }, g).textContent = 'S' + s;
+    g.onclick = () => { if (!busy()) { sel.start = s; render(); } };
+  }
+  el('circle', { cx: 150, cy: -50, r: 13, class: 'part', id: 'part' }, svg).style.display = 'none';
+  svgBuilt = true;
+}
+
+function pickBox(id) {
+  if (busy()) return;
+  const bx = st.boxes[id - 1];
+  if (bx.state !== 'free') { toast('Box ' + id + ' is ' + (bx.state === 'check' ? 'flagged, check it' : bx.state)); return; }
+  sel.box = id; render();
+}
+
+// ---------- controls built once ----------
+function buildCards() {
+  const sb = $('#starts');
+  for (let s = 1; s <= 3; s++) sb.appendChild(btn('Start ' + s, '', () => { sel.start = s; render(); }));
+  const bb = $('#boxbtns');
+  for (let i = 1; i <= 5; i++) bb.appendChild(btn('Box ' + i, '', () => pickBox(i)));
+
+  const bc = $('#boxes');
+  st.boxes.forEach(bx => {
+    const d = document.createElement('div');
+    d.className = 'box'; d.id = 'card' + bx.id;
+    d.innerHTML = '<div class="t"><span>Box ' + bx.id + '</span><span class="pill idle" id="cs' + bx.id + '"></span></div>';
+    if (bx.cell) {
+      d.innerHTML += '<div class="g" id="cg' + bx.id + '">0.0 g</div><div class="muted" id="cr' + bx.id + '"></div>';
+      const row = document.createElement('div'); row.className = 'row'; row.style.marginTop = '6px';
+      row.appendChild(btn('Tare', 'small', () => post('/api/tare?box=' + bx.id)));
+      const clr = btn('Clear flag', 'small', () => post('/api/box/clear?box=' + bx.id)); clr.id = 'cc' + bx.id;
+      row.appendChild(clr);
+      if (st.sim) {
+        row.appendChild(btn('Place part', 'small', () => post('/api/sim?box=' + bx.id + '&grams=40')));
+        row.appendChild(btn('Remove part', 'small', () => post('/api/sim?box=' + bx.id + '&grams=0')));
+      }
+      d.appendChild(row);
+    } else {
+      d.innerHTML += '<div class="muted">No load cell. Always available.</div>';
+    }
+    bc.appendChild(d);
+  });
+
+  const ab = $('#armbtns');
+  for (const b of [2, 3, 4]) {
+    const o = btn('Arm ' + b + ' out', 'small', () => post('/api/arm?box=' + b + '&out=' + (st.arms[b - 2] ? 0 : 1)));
+    o.id = 'ab' + b; ab.appendChild(o);
+  }
+  const cal = $('#calib');
+  st.boxes.filter(b => b.cell).forEach(bx => {
+    const row = document.createElement('div'); row.className = 'row'; row.style.marginTop = '6px';
+    const l = document.createElement('span'); l.className = 'lbl'; l.textContent = 'Box ' + bx.id; row.appendChild(l);
+    const inp = document.createElement('input'); inp.type = 'number'; inp.placeholder = 'grams'; inp.min = 1; row.appendChild(inp);
+    row.appendChild(btn('Calibrate', 'small', () => {
+      const g = parseFloat(inp.value);
+      if (!(g > 0)) { toast('Enter the known mass in grams'); return; }
+      post('/api/calibrate?box=' + bx.id + '&grams=' + g).then(ok => ok && toast('Calibrating box ' + bx.id + ' with ' + g + ' g'));
+    }));
+    cal.appendChild(row);
+  });
+  document.querySelectorAll('[data-jog]').forEach(b => b.onclick = () => {
+    const v = parseFloat(b.dataset.jog);
+    post('/api/jog?mm=' + Math.abs(v) + '&dir=' + (v > 0 ? 1 : -1));
+  });
+  $('#motoroff').onclick = () => post('/api/motor?on=0');
+  $('#run').onclick = () => post('/api/route?start=' + sel.start + '&box=' + sel.box).then(ok => { if (ok) { sel.box = 0; } });
+  $('#stop').onclick = () => post('/api/stop');
+  $('#logclear').onclick = () => { if (confirm('Clear the run log on the ESP32?')) post('/api/log/clear').then(() => { lastLogCount = -1; }); };
+  cardsBuilt = true;
+}
+
+// ---------- render ----------
+const LABEL = { idle: 'Idle', arm_out: 'Arm out', running: 'Belt running', settling: 'Settling', arm_in: 'Arm back',
+  done: 'Delivered', error: 'Error', stopped: 'Stopped', estop: 'E-STOP' };
+const PILL = { idle: 'idle', arm_out: 'run', running: 'run', settling: 'run', arm_in: 'run', done: 'ok', error: 'err', stopped: 'warn', estop: 'err' };
+
+function render() {
+  if (!st) return;
+  if (!svgBuilt) buildSvg(st.geom);
+  if (!cardsBuilt) buildCards();
+  const r = st.route, b = busy();
+
+  $('#b-link').className = 'badge on'; $('#b-link').textContent = 'online';
+  $('#b-sim').hidden = !st.sim;
+  $('#b-wifi').textContent = (st.wifi.mode === 'ap' ? 'Hotspot ' : 'Wi-Fi ') + st.wifi.ssid + ' · ' + st.wifi.ip;
+  $('#estop').hidden = !st.estop;
+
+  if (sel.box && st.boxes[sel.box - 1].state !== 'free') sel.box = 0;
+  [...$('#starts').children].forEach((x, i) => { x.classList.toggle('sel', sel.start === i + 1); x.disabled = b; });
+  [...$('#boxbtns').children].forEach((x, i) => {
+    const bx = st.boxes[i];
+    x.disabled = b || bx.state !== 'free';
+    x.classList.toggle('sel', sel.box === bx.id);
+  });
+  $('#run').disabled = b || !sel.start || !sel.box || st.estop;
+  $('#sel').textContent = (sel.start && sel.box) ? 'Start ' + sel.start + ' → Box ' + sel.box : 'Pick a start and a box';
+
+  const pill = $('#state'); pill.textContent = LABEL[r.state] || r.state; pill.className = 'pill ' + (PILL[r.state] || 'idle');
+  $('#msg').textContent = r.msg;
+  $('#elapsed').textContent = b ? (r.elapsed_ms / 1000).toFixed(1) + ' s' : '';
+  $('#prog').style.width = (b && r.expected_mm > 0 ? Math.min(100, st.belt.mm / r.expected_mm * 100) : 0) + '%';
+
+  // diagram
+  for (let s = 1; s <= 3; s++) $('#svs' + s).classList.toggle('sel', sel.start === s);
+  st.boxes.forEach(bx => $('#svb' + bx.id).setAttribute('class', 'sv-box ' + bx.state + (sel.box === bx.id ? ' sel' : '')));
+  [2, 3, 4].forEach((bn, i) => {
+    const cy = mmY(st.geom.boxes[bn - 1]);
+    $('#arm' + bn).setAttribute('transform', st.arms[i] ? 'rotate(45 110 ' + (cy + 50) + ')' : '');
+    $('#ab' + bn).textContent = 'Arm ' + bn + (st.arms[i] ? ' in' : ' out');
+  });
+  $('#svg').setAttribute('class', st.belt.moving ? (st.belt.dir > 0 ? 'moving-f' : 'moving-r') : '');
+
+  const part = $('#part');
+  if (b && r.start && r.box) {
+    const from = st.geom.starts[r.start - 1], to = st.geom.boxes[r.box - 1];
+    const dir = to >= from ? 1 : -1, dist = Math.abs(to - from);
+    let y = mmY(from + dir * Math.min(st.belt.mm, dist)), x = 150;
+    const extra = st.belt.mm - dist;
+    if (extra > 0) {
+      const f = Math.min(1, extra / Math.max(1, r.expected_mm - dist));
+      if (r.box >= 2 && r.box <= 4) x = 150 - f * 93; else y += dir * f * 38;
+    }
+    part.setAttribute('cx', x); part.setAttribute('cy', y); part.style.display = '';
+  } else if (b) {
+    part.style.display = 'none';
+  } else {
+    part.style.display = 'none';
+  }
+
+  // box cards
+  st.boxes.forEach(bx => {
+    const card = $('#card' + bx.id); card.className = 'box ' + bx.state;
+    const ps = $('#cs' + bx.id);
+    ps.textContent = bx.state === 'free' ? 'Available' : bx.state === 'occupied' ? 'Occupied' : 'Check';
+    ps.className = 'pill ' + (bx.state === 'free' ? 'ok' : bx.state === 'occupied' ? 'err' : 'warn');
+    if (bx.cell) {
+      const g = (bx.g < 0 && bx.g > -0.5) ? 0 : bx.g;   // hide noise around zero
+      $('#cg' + bx.id).textContent = bx.taring ? 'zeroing…' : g.toFixed(1) + ' g';
+      $('#cr' + bx.id).textContent = 'raw ' + bx.raw;
+      $('#cc' + bx.id).style.display = bx.state === 'check' ? '' : 'none';
+    }
+  });
+
+  $('#foot').textContent = 'firmware ' + st.fw + ' · up ' + Math.floor(st.uptime_ms / 1000) + ' s · ' + st.geom.speed + ' mm/s';
+
+  if (st.log_count !== lastLogCount) { lastLogCount = st.log_count; loadLog(); }
+}
+
+function renderOffline() {
+  $('#b-link').className = 'badge off'; $('#b-link').textContent = 'offline';
+  $('#run').disabled = true;
+}
+
+async function loadLog() {
+  try {
+    const r = await fetch('/api/log?n=25', { cache: 'no-store' });
+    const rows = await r.json();
+    $('#logcount').textContent = '(' + st.log_count + ' runs)';
+    $('#logbody').innerHTML = rows.map(e =>
+      '<tr><td>' + e.id + '</td><td>' + e.start + '</td><td>' + e.box + '</td><td>' + e.result +
+      '</td><td>' + (e.ms / 1000).toFixed(1) + ' s</td><td>' + e.g0.toFixed(1) + '</td><td>' + e.g1.toFixed(1) +
+      '</td><td>' + Math.round(e.mm) + ' mm</td></tr>').join('') || '<tr><td colspan="8" class="muted">No runs yet.</td></tr>';
+  } catch (e) {}
+}
+
+async function poll() {
+  try {
+    const c = new AbortController(); const t = setTimeout(() => c.abort(), 1500);
+    const r = await fetch('/api/status', { signal: c.signal, cache: 'no-store' });
+    clearTimeout(t);
+    st = await r.json();
+    render();
+  } catch (e) { renderOffline(); }
+  setTimeout(poll, 400);
+}
+poll();
+</script>
+</body>
+</html>
