@@ -16,3 +16,7 @@ sdkconfig.old
 *.bin
 *.elf
 *.map
+
+# Local Wi-Fi credentials
+wifi_secrets.h
+*.bak

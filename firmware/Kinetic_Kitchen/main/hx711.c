@@ -56,6 +56,8 @@ static const cell_pins_t s_cells[KK_NUM_CELLS] = {
     { KK_PIN_HX_BOX4_DOUT, KK_PIN_HX_BOX4_SCK },
 };
 
+static const int s_sign[KK_NUM_CELLS] = KK_HX_SIGN;
+
 static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
 
 void hx711_init(void)
@@ -119,7 +121,7 @@ bool hx711_read_raw(int cell, int32_t *raw)
     if (v & 0x800000) {
         v |= 0xFF000000;   // sign-extend 24 -> 32 bit
     }
-    *raw = (int32_t)v;
+    *raw = s_sign[cell] * (int32_t)v;
     return true;
 }
 

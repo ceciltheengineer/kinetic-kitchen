@@ -118,7 +118,11 @@ void stepper_init(void)
 
     s_steps_per_mm = (float)KK_MOTOR_STEPS_PER_REV * (float)KK_MICROSTEPS * KK_PULLEY_RATIO
                      / ((float)M_PI * KK_ROLLER_DIAMETER_MM);
+#if KK_MOTOR_TEST || KK_DRIVER_CHECK
+    build_ramp(KK_TEST_SPEED_MM_S, KK_TEST_ACCEL_MM_S2);
+#else
     build_ramp(KK_BELT_SPEED_MM_S, KK_BELT_ACCEL_MM_S2);
+#endif
 
     gptimer_config_t tc = {
         .clk_src = GPTIMER_CLK_SRC_DEFAULT,
@@ -167,7 +171,7 @@ bool stepper_move_mm(float mm, int dir)
     if (!s_enabled) {
         stepper_enable(true);
     }
-    vTaskDelay(pdMS_TO_TICKS(2));   // TMC2209 wants a moment after EN / DIR changes
+    vTaskDelay(pdMS_TO_TICKS(2));   // the driver wants a moment after EN / DIR changes
 
     s_done = 0;
     s_remaining = steps;

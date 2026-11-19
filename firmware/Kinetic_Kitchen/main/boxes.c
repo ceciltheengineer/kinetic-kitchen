@@ -3,6 +3,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -24,6 +25,12 @@ typedef struct {
     float   cal_g;
     int     acc_n;
     int64_t acc_sum;
+    // drift handling
+    float   meas;            // smoothed grams straight from the cell
+    float   ref;             // occupied: slow-moving copy of meas (follows creep only)
+    float   part_g;          // occupied: weight latched when the part landed
+    int64_t occupied_at_ms;
+    float   track_acc;       // zero tracking: fractional counts carried over
 } box_t;
 
 static box_t s_boxes[KK_NUM_BOXES];
@@ -98,6 +105,8 @@ static void update_box(box_t *b, int32_t raw)
             } else {
                 i->offset = avg;
                 i->grams = 0.0f;
+                b->meas = 0.0f;
+                b->track_acc = 0.0f;
                 ESP_LOGI(TAG, "box %d tared, offset %ld", i->id, (long)avg);
             }
             b->tare_req = b->cal_req = false;
@@ -110,38 +119,68 @@ static void update_box(box_t *b, int32_t raw)
     }
 
     float g = (float)(raw - i->offset) / i->scale;
-    i->grams = 0.5f * i->grams + 0.5f * g;   // light smoothing
+    b->meas = 0.5f * b->meas + 0.5f * g;   // light smoothing
     int64_t t = now_ms();
+    // Creep is slow; a part landing or leaving is a jump. Anything slower
+    // than this per sample is treated as drift.
+    const float max_step = KK_DRIFT_RATE_G_PER_S * (KK_CELL_SAMPLE_MS / 1000.0f);
 
     switch (i->state) {
     case BOX_FREE:
+        // Zero tracking: an empty box near zero is nudged back to exactly zero.
+        if (fabsf(b->meas) < KK_ZERO_TRACK_G) {
+            float step = fminf(fmaxf(b->meas, -max_step), max_step);
+            b->track_acc += step * i->scale;
+            int32_t whole = (int32_t)b->track_acc;
+            i->offset += whole;
+            b->track_acc -= (float)whole;
+            b->meas -= (float)whole / i->scale;
+        }
+        i->grams = b->meas;
         if (i->grams > KK_OCCUPIED_G) {
             if (b->above_since_ms == 0) {
                 b->above_since_ms = t;
             } else if (t - b->above_since_ms >= KK_OCCUPIED_MS) {
                 i->state = BOX_OCCUPIED;
                 b->below_since_ms = 0;
+                b->part_g = b->meas;
+                b->ref = b->meas;
+                b->occupied_at_ms = t;
                 ESP_LOGI(TAG, "box %d OCCUPIED (%.1f g)", i->id, i->grams);
             }
         } else {
             b->above_since_ms = 0;
         }
         break;
-    case BOX_OCCUPIED:
-        if (i->grams < KK_VACANT_G) {
+    case BOX_OCCUPIED: {
+        if (t - b->occupied_at_ms < KK_SETTLE_MS) {
+            // The part is still settling: keep latching its weight.
+            b->part_g = b->meas;
+            b->ref = b->meas;
+        } else {
+            // Follow slow creep only. A removal is far faster than this.
+            b->ref += fminf(fmaxf(b->meas - b->ref, -max_step), max_step);
+        }
+        // Part weight with the creep taken out. Stays at part_g while the
+        // cell drifts, drops when the part is lifted out.
+        i->grams = b->part_g + (b->meas - b->ref);
+        float gone_below = fmaxf(KK_VACANT_G, KK_REMOVED_FRACTION * b->part_g);
+        if (i->grams < gone_below) {
             if (b->below_since_ms == 0) {
                 b->below_since_ms = t;
             } else if (t - b->below_since_ms >= KK_VACANT_MS) {
                 i->state = BOX_FREE;
                 b->above_since_ms = 0;
-                b->tare_req = true;   // re-zero: load cells drift
-                ESP_LOGI(TAG, "box %d VACANT, re-zeroing", i->id);
+                b->tare_req = true;   // re-zero now that the box is empty
+                ESP_LOGI(TAG, "box %d VACANT (part was %.1f g), re-zeroing", i->id, b->part_g);
             }
         } else {
             b->below_since_ms = 0;
         }
         break;
+    }
     case BOX_NEEDS_CHECK:
+        i->grams = b->meas;
         break;   // stays until someone clears it
     }
 }
@@ -280,6 +319,9 @@ void boxes_clear_check(int box)
         // Decide from the current weight, like a fresh start.
         b->info.state = (b->info.grams > KK_OCCUPIED_G) ? BOX_OCCUPIED : BOX_FREE;
         b->above_since_ms = b->below_since_ms = 0;
+        b->part_g = b->meas;
+        b->ref = b->meas;
+        b->occupied_at_ms = now_ms();
     }
     xSemaphoreGive(s_lock);
 }

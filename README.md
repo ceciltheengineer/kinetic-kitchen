@@ -16,7 +16,7 @@ This repository holds the project report and the prototype firmware.
 ## The prototype
 
 * 65 cm conveyor with 3 start positions and 5 collection boxes.
-* NEMA 17 stepper through a TMC2209 drives a reversible belt. Boxes 1 and 5 are at the
+* NEMA 17 stepper through an A4988 drives a reversible belt. Boxes 1 and 5 are at the
   ends of the belt. Boxes 2, 3 and 4 are at the side, each with a 45° servo arm.
 * Boxes 2 and 4 sit on load cells (HX711) and toggle occupied / available from weight.
   Boxes 1, 3 and 5 are always available.

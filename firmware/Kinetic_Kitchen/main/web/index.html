@@ -34,7 +34,7 @@ h1{font-weight:400;font-size:clamp(44px,7.4vh,72px);line-height:1;color:var(--br
 /* ---------- brand band: the blocks ---------- */
 .band{padding:var(--inset);min-width:0}
 .slab{background:var(--brand-deep);color:var(--paper);border-radius:var(--radius);padding:14px 24px;
-  display:flex;flex-wrap:wrap;gap:6px 26px;align-items:center;max-width:1180px;margin:0 auto var(--gap)}
+  display:flex;flex-wrap:wrap;gap:6px 26px;align-items:center;margin:0 0 var(--gap)}
 .meta,.badge{font-size:12px;letter-spacing:var(--track);text-transform:uppercase;white-space:nowrap}
 .meta b{font-weight:700}
 .badge{font-weight:700}
@@ -43,8 +43,16 @@ h1{font-weight:400;font-size:clamp(44px,7.4vh,72px);line-height:1;color:var(--br
 .badge.sim{background:var(--paper);color:var(--brand-deep);padding:3px 12px;border-radius:999px}
 #foot{margin-left:auto;opacity:.8}
 
-main{display:grid;grid-template-columns:minmax(240px,320px) 1fr;grid-template-rows:auto auto auto auto auto 1fr;gap:var(--gap);max-width:1180px;margin:0 auto;
-  grid-template-areas:"conv estop" "conv route" "conv status" "conv boxes" "conv bring" "conv log"}
+main{display:grid;grid-template-columns:minmax(240px,300px) minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto auto 1fr;gap:var(--gap);
+  grid-template-areas:"conv estop estop" "conv route status" "conv boxes log" "conv bring log"}
+#c-conv,#c-log,#c-bring{align-self:stretch}
+#c-route,#c-status{align-self:stretch}
+/* medium screens: two columns, status and log under the controls */
+@media(max-width:1280px){
+  main{grid-template-columns:minmax(240px,300px) minmax(0,1fr);grid-template-rows:none;
+    grid-template-areas:"conv estop" "conv route" "conv status" "conv boxes" "conv bring" "conv log"}
+  #c-route,#c-status,#c-bring,#c-log{align-self:start}
+}
 .card{background:var(--paper);border-radius:var(--radius);padding:22px 24px;align-self:start;min-width:0}
 .card.deep{background:var(--brand-deep);color:var(--paper)}
 #c-conv{grid-area:conv}#c-route{grid-area:route}#c-status{grid-area:status}#c-boxes{grid-area:boxes}#c-bring{grid-area:bring}#c-log{grid-area:log}#estop{grid-area:estop}
@@ -80,12 +88,12 @@ a:has(button){text-decoration:none}
 .bar{height:10px;background:rgba(255,255,255,.18);border-radius:999px;overflow:hidden;margin-top:14px}
 .bar i{display:block;height:100%;background:var(--paper);border-radius:999px;width:0;transition:width .3s}
 
-.boxes{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.boxes{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}
 .box{background:var(--tint);border-radius:20px;padding:14px}
 .box .t{font-weight:700;font-size:12px;letter-spacing:var(--track);text-transform:uppercase;color:var(--brand-deep);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px}
 .box .t>span:first-child{white-space:nowrap}
 .box .g{font-size:28px;font-weight:700;margin:6px 0 0;color:var(--brand-deep)}
-.box .row button{background:var(--paper)}
+.box .row button{background:var(--paper);white-space:nowrap;padding:6px 10px;font-size:11px}
 .box .row button:hover{background:#fafbff}
 
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -112,16 +120,23 @@ svg{width:100%;height:auto;display:block;max-height:78vh}
 .sv-start.sel text{fill:var(--paper)}
 .belt{fill:var(--brand-deep)}
 .stripes line{stroke:var(--brand);stroke-width:3;stroke-dasharray:8 14}
-.moving-f .stripes line{animation:belt .6s linear infinite}
-.moving-r .stripes line{animation:belt .6s linear infinite reverse}
-@keyframes belt{to{stroke-dashoffset:-22}}
-.arm{stroke:var(--brand);stroke-width:8;stroke-linecap:round}
+.arrows{display:none}
+.arrows polyline{fill:none;stroke:var(--brand);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.moving-f .stripes,.moving-r .stripes{display:none}
+.moving-f .arrows-f{display:inline;animation:arrow-f .8s linear infinite}
+.moving-r .arrows-r{display:inline;animation:arrow-r .8s linear infinite}
+@keyframes arrow-f{from{transform:translateY(-18px)}to{transform:translateY(18px)}}
+@keyframes arrow-r{from{transform:translateY(18px)}to{transform:translateY(-18px)}}
+@media (prefers-reduced-motion:reduce){.moving-f .arrows-f,.moving-r .arrows-r{animation:none}}
+.arm{stroke:var(--brand);stroke-width:8;stroke-linecap:round;transition:transform .3s}
+.arm-pivot{fill:var(--brand-deep);stroke:var(--brand);stroke-width:3}
 .part{fill:var(--paper);stroke:var(--brand);stroke-width:4}
 
 details summary{margin:0;list-style:none;display:flex;justify-content:space-between;align-items:center}
 details summary::-webkit-details-marker{display:none}
 details summary::after{content:"+";font-size:18px;line-height:1}
 details[open] summary::after{content:"\2212"}
+select{font:inherit;font-weight:700;padding:8px 14px;border-radius:999px;border:0;background:var(--tint);color:var(--brand-deep)}
 input[type=number]{font:inherit;font-weight:700;padding:8px 14px;border-radius:999px;border:0;background:var(--tint);color:var(--brand-deep);width:110px}
 input[type=number]:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
 
@@ -160,6 +175,7 @@ input[type=number]:focus-visible{outline:3px solid var(--brand);outline-offset:2
 <header class="slab">
   <span id="b-link" class="meta badge off">connecting</span>
   <span id="b-sim" class="meta badge sim" hidden>Simulation</span>
+  <span id="b-nomotor" class="meta badge sim" hidden>No motor: load cells and arms only</span>
   <span id="b-wifi" class="meta"></span>
   <span id="foot" class="meta"></span>
 </header>
@@ -206,7 +222,23 @@ input[type=number]:focus-visible{outline:3px solid var(--brand);outline-offset:2
           <button class="small" id="motoroff">Motor off</button>
         </div>
         <div class="row" style="margin-top:10px"><span class="lbl">Arms</span><span id="armbtns" class="row"></span></div>
+        <div id="armzero" style="margin-top:10px"></div>
+        <p class="muted" style="margin:4px 0 0">Arm 0 point: nudge each arm until it sits flush with the conveyor, then press Set as 0. Saved in flash.</p>
+        <div id="armcfg" style="margin-top:10px"></div>
+        <div class="row" style="margin-top:14px"><span class="lbl">Servo test</span>
+          <select id="st-arm"><option value="2">Arm 2 (GPIO 23)</option><option value="3">Arm 3 (GPIO 19)</option><option value="4">Arm 4 (GPIO 18)</option></select>
+          <input type="range" id="st-deg" min="0" max="180" step="5" value="90" style="flex:1;min-width:140px">
+          <span id="st-val">90&deg;</span>
+        </div>
+        <div class="row" style="margin-top:6px"><span class="lbl"></span>
+          <button class="small" data-st="0">0&deg;</button>
+          <button class="small" data-st="90">90&deg;</button>
+          <button class="small" data-st="180">180&deg;</button>
+          <button class="small" id="st-sweep">Sweep</button>
+        </div>
+        <p class="muted" id="st-out" style="margin:6px 0 0">Servo test drives one servo straight to an angle (no 0 point) and reads the signal pin back.</p>
         <div id="calib" style="margin-top:10px"></div>
+        <p class="muted" style="margin:14px 0 0">Arm angles: the rest angle (usually 0, flush with the conveyor) and the out angle for one belt direction; the other direction uses 180&deg; minus it. Save moves the arm right away and stores the angles in flash.</p>
         <p class="muted" style="margin:14px 0 0">Positive jog moves the belt toward box 5. Calibrate: tare the empty box, put a known mass in it, enter its grams and press Calibrate.</p>
       </details>
     </div>
@@ -273,12 +305,26 @@ function buildSvg(geom) {
   el('rect', { x: 110, y: Y0, width: 80, height: Y1 - Y0, rx: 6, class: 'belt' }, svg);
   const stripes = el('g', { class: 'stripes' }, svg);
   for (const x of [128, 150, 172]) el('line', { x1: x, y1: Y0 + 6, x2: x, y2: Y1 - 6 }, stripes);
+  // Direction arrows, shown instead of the stripes while the belt moves.
+  // Forward (toward box 5) points down the page, reverse points up.
+  for (const [cls, s] of [['arrows-f', 1], ['arrows-r', -1]]) {
+    const g = el('g', { class: 'arrows ' + cls }, svg);
+    for (let y = Y0 + 24; y <= Y1 - 24; y += 36) {
+      for (const x of [128, 172]) {
+        el('polyline', { points: `${x - 9},${y - 5 * s} ${x},${y + 5 * s} ${x + 9},${y - 5 * s}` }, g);
+      }
+    }
+  }
   mkBox(svg, 1, 110, 10, 80, 55);
   mkBox(svg, 5, 110, 595, 80, 55);
   for (const b of [2, 3, 4]) {
     const cy = mmY(geom.boxes[b - 1]);
     mkBox(svg, b, 15, cy - 55, 85, 110);
-    el('line', { x1: 110, y1: cy + 50, x2: 110, y2: cy - 60, class: 'arm', id: 'arm' + b }, svg);
+    // Arms pivot on the far side of the belt from the boxes. At rest the arm
+    // lies along the belt edge pointing toward box 1; going out it swings
+    // across the belt toward the box.
+    el('line', { x1: 190, y1: cy, x2: 190, y2: cy - 100, class: 'arm', id: 'arm' + b }, svg);
+    el('circle', { cx: 190, cy, r: 6, class: 'arm-pivot' }, svg);
   }
   for (let s = 1; s <= 3; s++) {
     const cy = mmY(geom.starts[s - 1]);
@@ -332,6 +378,61 @@ function buildCards() {
     const o = btn('Arm ' + b + ' out', 'small', () => post('/api/arm?box=' + b + '&out=' + (st.arms[b - 2] ? 0 : 1)));
     o.id = 'ab' + b; ab.appendChild(o);
   }
+  const az = $('#armzero');
+  [2, 3, 4].forEach((b, i) => {
+    const row = document.createElement('div'); row.className = 'row'; row.style.marginTop = '6px';
+    const l = document.createElement('span'); l.className = 'lbl'; l.textContent = 'Arm ' + b + ' 0 point'; row.appendChild(l);
+    let v = Math.round((st.arm_zero && st.arm_zero[i]) || 0);
+    const val = document.createElement('span'); val.style.minWidth = '48px'; val.style.textAlign = 'center';
+    const show = () => { val.textContent = v + '°'; };
+    const go = d => {
+      v = Math.max(0, Math.min(180, v + d)); show();
+      post('/api/armzero?box=' + b + '&deg=' + v);
+    };
+    row.appendChild(btn('CW 5', 'small', () => go(-5)));   // a lower servo angle turns clockwise
+    row.appendChild(btn('CW 1', 'small', () => go(-1)));
+    row.appendChild(val);
+    row.appendChild(btn('CCW 1', 'small', () => go(1)));
+    row.appendChild(btn('CCW 5', 'small', () => go(5)));
+    row.appendChild(btn('Set as 0', 'small', () => {
+      if (v > 65) toast('Above 65 the 115° out position runs past the servo range');
+      post('/api/armzero?box=' + b + '&deg=' + v + '&save=1').then(ok => ok && toast('Arm ' + b + ': 0 point saved'));
+    }));
+    show();
+    az.appendChild(row);
+  });
+  const ac = $('#armcfg');
+  [2, 3, 4].forEach((b, i) => {
+    const row = document.createElement('div'); row.className = 'row'; row.style.marginTop = '6px';
+    const l = document.createElement('span'); l.className = 'lbl'; l.textContent = 'Arm ' + b; row.appendChild(l);
+    const mk = (ph, v) => { const x = document.createElement('input'); x.type = 'number'; x.min = 0; x.max = 180; x.title = ph + ' angle (deg)'; x.value = v; row.appendChild(document.createTextNode(ph)); row.appendChild(x); return x; };
+    const cfg = (st.arm_cfg && st.arm_cfg[i]) || [0, 65];
+    const rest = mk('rest', cfg[0]), out = mk('out', cfg[1]);
+    row.appendChild(btn('Save', 'small', () => {
+      const r = parseFloat(rest.value), o = parseFloat(out.value);
+      if (!(r >= 0 && r <= 180 && o >= 0 && o <= 180)) { toast('Angles must be 0 to 180'); return; }
+      post('/api/armcfg?box=' + b + '&rest=' + r + '&out=' + o).then(ok => ok && toast('Arm ' + b + ' angles saved'));
+    }));
+    ac.appendChild(row);
+  });
+  const stGo = async deg => {
+    $('#st-deg').value = deg; $('#st-val').textContent = deg + '°';
+    const arm = $('#st-arm').value;
+    try {
+      const r = await fetch('/api/servotest?box=' + arm + '&deg=' + deg, { method: 'POST' });
+      const j = await r.json();
+      $('#st-out').textContent = j.ok
+        ? 'Arm ' + arm + ' to ' + deg + '°: pulse on the pin ' + j.pulse_us + ' µs, expected ' + j.expected_us + ' µs. '
+          + (j.pulse_us > 0 ? 'The ESP32 is sending the signal.' : 'NO pulse on the pin.')
+        : 'Servo test failed: ' + j.error;
+    } catch (e) { $('#st-out').textContent = 'Servo test: no answer from the board'; }
+  };
+  $('#st-deg').onchange = e => stGo(+e.target.value);
+  $('#st-deg').oninput = e => { $('#st-val').textContent = e.target.value + '°'; };
+  document.querySelectorAll('[data-st]').forEach(x => x.onclick = () => stGo(+x.dataset.st));
+  $('#st-sweep').onclick = async () => {
+    for (const d of [0, 45, 90, 135, 180, 135, 90, 45, 0]) { await stGo(d); await new Promise(r => setTimeout(r, 600)); }
+  };
   const cal = $('#calib');
   st.boxes.filter(b => b.cell).forEach(bx => {
     const row = document.createElement('div'); row.className = 'row'; row.style.marginTop = '6px';
@@ -368,6 +469,7 @@ function render() {
 
   $('#b-link').className = 'badge on'; $('#b-link').textContent = 'online';
   $('#b-sim').hidden = !st.sim;
+  $('#b-nomotor').hidden = st.motor !== false;
   $('#b-wifi').textContent = (st.wifi.mode === 'ap' ? 'Hotspot ' : 'Wi-Fi ') + st.wifi.ssid + ' · ' + st.wifi.ip;
   $('#estop').hidden = !st.estop;
 
@@ -391,7 +493,8 @@ function render() {
   st.boxes.forEach(bx => $('#svb' + bx.id).setAttribute('class', 'sv-box ' + bx.state + (sel.box === bx.id ? ' sel' : '')));
   [2, 3, 4].forEach((bn, i) => {
     const cy = mmY(st.geom.boxes[bn - 1]);
-    $('#arm' + bn).setAttribute('transform', st.arms[i] ? 'rotate(45 110 ' + (cy + 50) + ')' : '');
+    const deg = st.arm_deg ? st.arm_deg[i] : (st.arms[i] ? 65 : 0);
+    $('#arm' + bn).setAttribute('transform', 'rotate(' + (-deg) + ' 190 ' + cy + ')');
     $('#ab' + bn).textContent = 'Arm ' + bn + (st.arms[i] ? ' in' : ' out');
   });
   $('#svg').setAttribute('class', st.belt.moving ? (st.belt.dir > 0 ? 'moving-f' : 'moving-r') : '');

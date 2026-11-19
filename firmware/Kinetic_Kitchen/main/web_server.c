@@ -88,8 +88,8 @@ static esp_err_t h_status(httpd_req_t *req)
     size_t cap = sizeof s_buf;
 #define P(...) n += snprintf(s_buf + n, (n < (int)cap) ? cap - n : 0, __VA_ARGS__)
 
-    P("{\"fw\":\"%s\",\"sim\":%s,\"uptime_ms\":%lld,", KK_FW_VERSION,
-      KK_SIM_MODE ? "true" : "false", (long long)(esp_timer_get_time() / 1000));
+    P("{\"fw\":\"%s\",\"sim\":%s,\"motor\":%s,\"uptime_ms\":%lld,", KK_FW_VERSION,
+      KK_SIM_MODE ? "true" : "false", KK_MOTOR_CONNECTED ? "true" : "false", (long long)(esp_timer_get_time() / 1000));
     P("\"wifi\":{\"mode\":\"%s\",\"ssid\":\"%s\",\"ip\":\"%s\"},", wi.mode, wi.ssid, wi.ip);
 
     P("\"geom\":{\"starts\":[");
@@ -104,6 +104,15 @@ static esp_err_t h_status(httpd_req_t *req)
       stepper_enabled() ? "true" : "false");
     P("\"arms\":[%s,%s,%s],", arm_is_out(2) ? "true" : "false",
       arm_is_out(3) ? "true" : "false", arm_is_out(4) ? "true" : "false");
+    P("\"arm_deg\":[%.0f,%.0f,%.0f],", arm_angle_now(2), arm_angle_now(3), arm_angle_now(4));
+    P("\"arm_zero\":[%.0f,%.0f,%.0f],", arm_zero_get(2), arm_zero_get(3), arm_zero_get(4));
+    P("\"arm_cfg\":[");
+    for (int b = 2; b <= 4; b++) {
+        float rest = 0.0f, out = 0.0f;
+        arm_get_angles(b, &rest, &out);
+        P("%s[%.0f,%.0f]", b > 2 ? "," : "", rest, out);
+    }
+    P("],");
     P("\"estop\":%s,", rs.estop ? "true" : "false");
 
     P("\"route\":{\"state\":\"%s\",\"start\":%d,\"box\":%d,\"run_id\":%lu,\"elapsed_ms\":%lu,"
@@ -128,6 +137,9 @@ static esp_err_t h_status(httpd_req_t *req)
 
 static esp_err_t h_route(httpd_req_t *req)
 {
+    if (!KK_MOTOR_CONNECTED) {
+        return reply_fail(req, "409 Conflict", "motor not connected (KK_MOTOR_CONNECTED is 0)");
+    }
     int start, box;
     if (!q_int(req, "start", &start) || !q_int(req, "box", &box)) {
         return reply_fail(req, "400 Bad Request", "need start and box");
@@ -189,6 +201,9 @@ static esp_err_t h_box_clear(httpd_req_t *req)
 
 static esp_err_t h_jog(httpd_req_t *req)
 {
+    if (!KK_MOTOR_CONNECTED) {
+        return reply_fail(req, "409 Conflict", "motor not connected (KK_MOTOR_CONNECTED is 0)");
+    }
     float mm;
     int dir = 1;
     if (!q_float(req, "mm", &mm) || mm <= 0.0f) {
@@ -213,6 +228,64 @@ static esp_err_t h_arm(httpd_req_t *req)
     q_int(req, "out", &out);
     if (!router_arm(box, out != 0)) {
         return reply_fail(req, "409 Conflict", "a route is already running");
+    }
+    return reply_ok(req);
+}
+
+// Bench test: one servo straight to an angle, with the pulse read back.
+static esp_err_t h_servotest(httpd_req_t *req)
+{
+    int box;
+    float deg;
+    if (!q_int(req, "box", &box) || !box_has_arm(box) || !q_float(req, "deg", &deg)) {
+        return reply_fail(req, "400 Bad Request", "need box (2-4) and deg");
+    }
+    if (router_busy()) {
+        return reply_fail(req, "409 Conflict", "a route is already running");
+    }
+    int us = 0;
+    if (!arm_test_angle(box, deg, &us)) {
+        return reply_fail(req, "400 Bad Request", "deg must be 0 to 180");
+    }
+    int want = (int)(KK_SERVO_MIN_US + (KK_SERVO_MAX_US - KK_SERVO_MIN_US) * (deg / 180.0f));
+    char m[96];
+    snprintf(m, sizeof m, "{\"ok\":true,\"deg\":%.0f,\"pulse_us\":%d,\"expected_us\":%d}", deg, us, want);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_sendstr(req, m);
+}
+
+static esp_err_t h_armcfg(httpd_req_t *req)
+{
+    int box;
+    float rest, out;
+    if (!q_int(req, "box", &box) || !box_has_arm(box)
+        || !q_float(req, "rest", &rest) || !q_float(req, "out", &out)) {
+        return reply_fail(req, "400 Bad Request", "need box, rest and out");
+    }
+    if (router_busy()) {
+        return reply_fail(req, "409 Conflict", "a route is already running");
+    }
+    if (!arm_set_angles(box, rest, out)) {
+        return reply_fail(req, "400 Bad Request", "angles must be 0 to 180");
+    }
+    return reply_ok(req);
+}
+
+// Find an arm's 0 point: /api/armzero?box=3&deg=40 moves the servo there,
+// adding &save=1 stores it as the arm's 0.
+static esp_err_t h_armzero(httpd_req_t *req)
+{
+    int box, save = 0;
+    float deg;
+    if (!q_int(req, "box", &box) || !box_has_arm(box) || !q_float(req, "deg", &deg)) {
+        return reply_fail(req, "400 Bad Request", "need box (2-4) and deg");
+    }
+    q_int(req, "save", &save);
+    if (router_busy()) {
+        return reply_fail(req, "409 Conflict", "a route is already running");
+    }
+    if (!arm_zero(box, deg, save != 0)) {
+        return reply_fail(req, "400 Bad Request", "deg must be 0 to 180");
     }
     return reply_ok(req);
 }
@@ -312,6 +385,9 @@ void web_server_start(void)
         { .uri = "/api/box/clear", .method = HTTP_POST, .handler = h_box_clear },
         { .uri = "/api/jog",       .method = HTTP_POST, .handler = h_jog },
         { .uri = "/api/arm",       .method = HTTP_POST, .handler = h_arm },
+        { .uri = "/api/armcfg",    .method = HTTP_POST, .handler = h_armcfg },
+        { .uri = "/api/servotest", .method = HTTP_POST, .handler = h_servotest },
+        { .uri = "/api/armzero",   .method = HTTP_POST, .handler = h_armzero },
         { .uri = "/api/motor",     .method = HTTP_POST, .handler = h_motor },
         { .uri = "/api/log",       .method = HTTP_GET,  .handler = h_log_json },
         { .uri = "/api/log.csv",   .method = HTTP_GET,  .handler = h_log_csv },

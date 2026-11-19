@@ -149,7 +149,7 @@ static void do_route(int start, int box)
              has_arm ? "arm out" : "arms stay in");
     set_state(RS_ARM_OUT, msg);
     if (has_arm) {
-        arm_set(box, true);
+        arm_set_out_dir(box, dir);
         result = wait_ms(KK_ARM_SETTLE_MS);
     }
 

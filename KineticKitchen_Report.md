@@ -10,7 +10,7 @@
 | :--- | :--- |
 | Category | Desarrollo de Prototipo Físico |
 | Attribute | Emprendimiento |
-| Team | Cecil Yusei Howell (project manager), Carlos Alberto Garcia Leyva, Yoana Montoya Garza, Javier Taddeus Hernández Garza. All third-semester Mechatronics Engineering. |
+| Team | Cecil Yusei Howell (project manager), Carlos Alberto Garcia Leyva, Yoana Montoya Garza, Javier Taddeus Hernández Garza. All third-semester students: Cecil, Yoana and Javier in Mechatronics Engineering, Carlos in Mechanical Engineering. |
 | Advisor | Dr. Erick Ramírez-Cedillo, Program Director, Mechatronics Engineering |
 | FrED Factory project lead | Bárbara Alejandra Novau Martínez |
 | Lab | FrED Factory |
@@ -24,7 +24,7 @@
 
 Print farms already automate job queues and bed clearing, but finished parts still fall into one shared bin. Parts hit each other, orders from different students get mixed, and nobody knows who picked up what. Kinetic Kitchen is a sorting station that sits in front of a row of 3D printers and sends each finished part to its own box. The full station is designed for three Bambu Lab P1S printers: a longer and wider conveyor, 12 boxes to hold one day of prints, a load cell under each box, and a message to the student with a photo of the part and the box number. This semester the team built a small prototype to prove the routing. It is a 65 cm conveyor made from laser-cut MDF, 3D printed rollers, a NEMA 17 stepper motor, and an ESP32. It has three start positions, which stand in for the three printers, and five boxes. Two boxes are at the ends of the belt, and the belt reaches them by running forward or backward. Three boxes are along the side, and a servo arm set at 45° pushes the part off the belt into each one. Two boxes sit on load cells, so the system knows when a box is occupied and when it is vacant again. A web page lets the user choose a start position and a box and shows box status. `[TODO: one sentence with the real test results once they exist. Do not submit numbers that were not measured.]`
 
-**Keywords:** 3D print farm, part sorting, conveyor, stepper motor, load cell, ESP32, Bambu Lab P1S, FrED Factory.
+**Keywords:** 3D print farm, part sorting, conveyor, stepper motor, load cell, ESP32, Bambu Lab P1S, FrED Factory
 
 ---
 
@@ -151,7 +151,7 @@ The prototype uses SG90 servos, which limits it to parts of about 250 g. The ful
 
 ### 7.2 Motor and Drive
 
-The NEMA 17 (17HS4401) is rated for 40 N·cm of holding torque at 1.7 A. Holding torque is the value at standstill, so it cannot be used as running torque. A fair estimate for usable torque at low speed is about half, 20 N·cm. The motor is driven by a TMC2209 driver from the 12 V supply `[TODO: current limit and microstep setting]`.
+The NEMA 17 (17HS4401) is rated for 40 N·cm of holding torque at 1.7 A. Holding torque is the value at standstill, so it cannot be used as running torque. A fair estimate for usable torque at low speed is about half, 20 N·cm. The motor is driven by a A4988 driver from the 12 V supply `[TODO: current limit and microstep setting]`.
 
 The motor drives the end roller through a GT2 timing belt (2 mm pitch, 6 mm wide, 200 mm loop) with a 20-tooth pulley from the kit on the motor and a 40-tooth pulley printed in PLA on the roller rod, a 2:1 reduction. The kit's 36-tooth pulley was not used. The end rollers are 30 mm in diameter. The conveyor belt loop is 120 cm, which puts the end roller centers about 553 mm apart. At 150 mm/s the roller turns at about 95 RPM and the motor at about 191 RPM.
 
@@ -242,7 +242,7 @@ Design, build, and test a conveyor prototype that sends a part from any of three
 ### 8.2 Specific Objectives
 
 1. **Mechanical.** Build a 65 cm × 20 cm × 10 cm conveyor with laser-cut MDF side plates, four printed rollers on threaded rod, three printed 14 cm arms, and five boxes.
-2. **Electronics.** Connect an ESP32 to a TMC2209 stepper driver, three servos, a 5 V buck converter, and two HX711 load cell amplifiers.
+2. **Electronics.** Connect an ESP32 to an A4988 stepper driver, three servos, two 5 V buck converters, and two HX711 load cell amplifiers.
 3. **Software.** Write ESP32 firmware and a simple web page that takes a start position and a box, runs the route, and shows which boxes are taken.
 4. **Testing.** Measure routing success, route time, box detection, and power (section 14).
 5. **Plan the full system.** Define how the station will connect to B.L.A.Z.E. and the printers.
@@ -287,6 +287,8 @@ The first concept (September) was a catch carriage or chutes under the printers 
 | Arm | **Current** `[TODO: version number]` | 14 cm long, with a corrected servo connection. |
 | Box | 1.0 | Too small. |
 | Box | **Current** `[TODO: version number]` | Re-dimensioned to fit the spaces in the chassis. |
+
+The old and new rollers are compared side by side in Figure 4 (section 17). The new roller has flat flanges and no cone. The first roller was 20 cm long. The new one is shorter because it only needs to span the 10 cm belt plus the flanges.
 
 ### 10.2 Prototype Layout
 
@@ -344,12 +346,28 @@ Two cases the full system has to handle:
 
 ### 11.2 Electronics
 
-* **Power.** A 12 V 3 A adapter feeds the stepper driver directly. One LM2596 buck converter makes a 5 V rail for the servos and the ESP32. The ESP32's USB-C port is only used to flash the firmware.
-* **Motor driver.** TMC2209 in step and direction mode.
+* **Power.** A 12 V 3 A adapter feeds the stepper driver directly. The circuit is built on three half-size breadboards with these power rails: 12 V from the DC jack (top right), 5 V for the three servos (bottom right), 3.3 V (bottom middle), and one rail with only ground connected (top middle). The bottom-left rail is unused. The first LM2596 steps the 12 V rail down to 5 V and feeds the servo rail. The second LM2596 takes 12 V from the same rail and feeds the ESP32's 5 V pin directly. The ESP32's USB-C port is only used to flash the firmware.
+* **Motor driver.** A4988 in step and direction mode.
 * **Controller.** ESP32 WROOM-32.
 * **Safety.** The prototype has no fuse and no emergency stop button. The firmware has a 10 s timeout, and unplugging the 12 V adapter stops everything. Adding a stop button and a fuse before the Expo is step A1 of the improvement plan (15.1).
 
-`[TODO: add the circuit diagram. V2 is on the team's Notion page "Circuit Diagrams".]`
+The circuit diagram is in Figure 5 (section 17). It was drawn in Cirkit Designer (https://app.cirkitdesigner.com/project/a55b3d68-53eb-42b1-83a7-80fec2e8fb32), and the project file is saved in the team folder as `circuit/Kinetic_Kitchen_Prototype.ckt`. The diagram uses these parts:
+
+| Part | Qty | Role |
+| :--- | :--- | :--- |
+| NEMA 17 stepper motor | 1 | Moves the belt. Four wires (A+, A-, B+, B-) go to the driver. |
+| A4988 stepper driver | 1 | Step and direction control for the motor. |
+| ESP32 development board (ESP32S NodeMCU) | 1 | Controller. |
+| LM2596 buck converter | 2 | Step 12 V down to 5 V. The first feeds the 5 V servo rail. The second feeds the ESP32 5 V pin. |
+| DC jack breakout | 1 | 12 V input from the adapter. |
+| HX711 load cell amplifier | 2 | One per load cell. |
+| 1 kg load cell | 2 | Under boxes 2 and 4. |
+| Servo (SG90 in the build) | 3 | One per side arm. |
+| Electrolytic capacitor, 100 µF | 2 | Supply smoothing. |
+| Electrolytic capacitor, 470 µF | 1 | Supply smoothing. |
+| Breadboard, half size | 3 | Hold the wiring. |
+
+`[TODO: confirm the capacitor roles.]`
 
 ### 11.3 Software
 
@@ -381,7 +399,7 @@ The prototype was built as cheaply as possible. Most parts came from FrED Factor
 | 3 | 12 V 3 A power adapter | 1 | 128 | FrED Factory |
 | 4 | ESP32 WROOM-32 | 1 | 150 | FrED Factory |
 | 5 | 1 kg load cell with HX711, 2-pack | 2 | 107 | FrED Factory |
-| 6 | TMC2209 stepper driver | 1 | 142 | FrED Factory |
+| 6 | A4988 stepper driver | 1 | 142 `[TODO: confirm A4988 price]` | FrED Factory |
 | 7 | NEMA 17 stepper 17HS4401 | 1 | 185 | FrED Factory |
 | 8 | GT2 pulley kit (20T and 36T) with 200 mm × 6 mm belt | 1 | 86 | Bought |
 | 9 | Washers | 8 | 30 | FrED Factory |
@@ -389,7 +407,7 @@ The prototype was built as cheaply as possible. Most parts came from FrED Factor
 | 11 | Ball bearings, 8 mm bore | 8 | 136 (estimate) | FrED Factory |
 | 12 | Conveyor belt loop, 120 cm × 10 cm × 2 mm | 1 | 800 (estimate) | FrED Factory |
 | 13 | PLA filament, 1 kg roll | about 1/3 roll | 288 | FrED Factory |
-| 14 | LM2596 buck converter, 2-pack | 1 | 125 | FrED Factory |
+| 14 | LM2596 buck converter, 2-pack | 2 | 125 | FrED Factory |
 | 15 | Hot glue gun sticks | 1 | 50 (estimate) | Bought |
 | 16 | Barrel DC jack breakout, 5-pack | 1 | 165 | Bought |
 | | **Total at list price** | | **2,966** | |
@@ -476,7 +494,7 @@ What can be said from the build so far:
 
 Each improvement below comes from a weakness found in this report. They are ordered so that safety comes first, then the changes that make the test results trustworthy, then the work that has to be settled before the full station is built.
 
-**Phase A: before the Expo (November 10 to 30, 2026)**
+**Phase A: next semester (February to June 2027)**
 
 | # | Improvement | Why | How | Done when |
 | :--- | :--- | :--- | :--- | :--- |
@@ -485,7 +503,7 @@ Each improvement below comes from a weakness found in this report. They are orde
 | A3 | Stop at the arm tip | The SG90 is at its limit with a 250 g part (7.1). If the arm gets pushed back, the part misses the box. | A fixed post where the arm tip rests at 45°, so the belt's push goes into the frame and not the servo. | The arm holds a 250 g part without moving back. |
 | A4 | Test logging in the firmware | Results have to be measured, not estimated. Logging by hand for 150 runs invites mistakes. | The ESP32 records route, start and stop time, and load cell readings for each run, and the web page exports them. | Every run in 14.1 has a log line. |
 
-**Phase B: next semester (February to June 2027). Connect to B.L.A.Z.E. and settle the geometry, still on the prototype.**
+**Phase B: 2027 Fall semester (August to December 2027). Connect to B.L.A.Z.E. and settle the geometry, still on the prototype.**
 
 | # | Improvement | Why | How | Done when |
 | :--- | :--- | :--- | :--- | :--- |
@@ -497,7 +515,7 @@ Each improvement below comes from a weakness found in this report. They are orde
 | B6 | Load cells on all five boxes, with weight check | Box status only works for boxes with a load cell, and the weight check confirms the right part arrived (7.3). | Add three more load cells. Read the expected weight from the sliced file that B.L.A.Z.E. stores. | Every box shows occupied or vacant, and a wrong-weight part is flagged. |
 | B7 | Final dimensions | The full station should not be built on guesses. | Use the results of B3 to B5 to fix the length, belt width, and box size in 15.2. | A dimensioned drawing of the full station. |
 
-**Phase C: full station (2027 to 2028)**
+**Phase C: full station (2028)**
 
 | # | Step | Why | Done when |
 | :--- | :--- | :--- | :--- |
@@ -543,7 +561,7 @@ The other option is to keep the conveyor short, about 1.3 m, and stack the boxes
 10. SimplyPrint. (n.d.). *The FarmLoop clearing method for AutoPrint*. Retrieved November 9, 2026, from https://help.simplyprint.io/en/article/the-farmloop-clearing-method-for-autoprint-1ttb53x/
 11. Standard Bots. (2024, October 7). *Universal Robots price guide: What to expect (new and used costs)*. https://standardbots.com/articles/universal-robot-price
 12. Tom's Hardware. (2025, August 4). *New auto-ejection tool for Bambu Lab print farms automatically ejects finished 3D prints from the machine*. https://tomshardware.com/3d-printing/new-auto-ejection-tool-for-bambu-lab-print-farms-automatically-ejects-finished-3d-prints-from-the-machine-usd129-kit-includes-auto-door-opener-and-special-bed-surface-for-frictionless-part-ejection
-13. Trinamic Motion Control. (2022). *TMC2209 datasheet* (Rev. 1.08). Analog Devices. https://wcm-cce.cldnet.analog.com/media/en/technical-documentation/data-sheets/TMC2209_datasheet_rev1.08.pdf
+13. `[TODO: add the A4988 datasheet reference and link]`
 ---
 
 ## 17. Appendix
@@ -552,4 +570,12 @@ The other option is to keep the conveyor short, about 1.3 m, and stack the boxes
 
 *Figure 3. The prototype on November 9, 2026.*
 
-`[TODO: add the circuit diagram, the laser cut drawing, photos of the arms and boxes once built, and the raw test log.]`
+![Old roller (right) and new roller (left)](figures/roller_comparison.png)
+
+*Figure 4. Old roller (right) with cone-shaped ends and a 40-tooth gear on the rod. New roller (left) with flat flanges and a 35 mm middle body.*
+
+![Circuit diagram](figures/circuit_diagram.png)
+
+*Figure 5. Circuit diagram of the prototype, drawn in Cirkit Designer. The parts are listed in section 11.2.*
+
+`[TODO: add the laser cut drawing, photos of the arms and boxes once built, and the raw test log.]`
