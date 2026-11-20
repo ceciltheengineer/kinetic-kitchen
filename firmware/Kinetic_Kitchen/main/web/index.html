@@ -43,15 +43,35 @@ h1{font-weight:400;font-size:clamp(44px,7.4vh,72px);line-height:1;color:var(--br
 .badge.sim{background:var(--paper);color:var(--brand-deep);padding:3px 12px;border-radius:999px}
 #foot{margin-left:auto;opacity:.8}
 
-main{display:grid;grid-template-columns:minmax(240px,300px) minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto auto 1fr;gap:var(--gap);
+/* Wide screens (laptop 1536 px and up, ultrawide 3440 px): three columns,
+   conveyor | route, boxes, bring-up | status, log. Fills the screen height.
+   The conveyor column grows with the screen so the drawing stays readable. */
+main{display:grid;grid-template-columns:clamp(260px,20vw,440px) minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto auto 1fr;gap:var(--gap);
+  min-height:calc(100vh - 2 * var(--inset) - 68px);
   grid-template-areas:"conv estop estop" "conv route status" "conv boxes log" "conv bring log"}
 #c-conv,#c-log,#c-bring{align-self:stretch}
 #c-route,#c-status{align-self:stretch}
-/* medium screens: two columns, status and log under the controls */
+/* Bring-up open: it takes the width of both right columns, and the conveyor
+   and log keep their own height instead of stretching down with it. */
+main:has(#c-bring details[open]){grid-template-rows:auto auto auto auto;
+  grid-template-areas:"conv estop estop" "conv route status" "conv boxes log" "conv bring bring"}
+main:has(#c-bring details[open]) #c-log{align-self:start}
+main:has(#c-bring details[open]) #c-conv{align-self:start;position:sticky;top:var(--inset)}
+/* Laptop widths (Legion 5i, 1536-1800 px): the two right columns are too
+   narrow for five box tiles and the log table, so those span both. */
+@media(min-width:1281px) and (max-width:1800px){
+  main,main:has(#c-bring details[open]){grid-template-rows:auto auto auto auto 1fr;
+    grid-template-areas:"conv estop estop" "conv route status" "conv boxes boxes" "conv log log" "conv bring bring"}
+  #c-log,main:has(#c-bring details[open]) #c-log{align-self:start}
+}
+/* Medium screens: two columns, status and log under the controls */
 @media(max-width:1280px){
-  main{grid-template-columns:minmax(240px,300px) minmax(0,1fr);grid-template-rows:none;
+  main{grid-template-columns:minmax(240px,300px) minmax(0,1fr);grid-template-rows:none;min-height:0;
+    grid-template-areas:"conv estop" "conv route" "conv status" "conv boxes" "conv bring" "conv log"}
+  main:has(#c-bring details[open]){grid-template-rows:none;
     grid-template-areas:"conv estop" "conv route" "conv status" "conv boxes" "conv bring" "conv log"}
   #c-route,#c-status,#c-bring,#c-log{align-self:start}
+  #c-conv{align-self:start;position:sticky;top:var(--inset)}
 }
 .card{background:var(--paper);border-radius:var(--radius);padding:22px 24px;align-self:start;min-width:0}
 .card.deep{background:var(--brand-deep);color:var(--paper)}
@@ -88,7 +108,7 @@ a:has(button){text-decoration:none}
 .bar{height:10px;background:rgba(255,255,255,.18);border-radius:999px;overflow:hidden;margin-top:14px}
 .bar i{display:block;height:100%;background:var(--paper);border-radius:999px;width:0;transition:width .3s}
 
-.boxes{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px}
+.boxes{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px}
 .box{background:var(--tint);border-radius:20px;padding:14px}
 .box .t{font-weight:700;font-size:12px;letter-spacing:var(--track);text-transform:uppercase;color:var(--brand-deep);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px}
 .box .t>span:first-child{white-space:nowrap}
@@ -153,8 +173,12 @@ input[type=number]:focus-visible{outline:3px solid var(--brand);outline-offset:2
 }
 @media(max-width:760px){
   :root{--inset:12px;--gap:12px;--radius:22px}
-  main{grid-template-columns:1fr;grid-template-rows:none;grid-template-areas:"estop" "route" "conv" "status" "boxes" "bring" "log"}
+  main,main:has(#c-bring details[open]){grid-template-columns:1fr;grid-template-rows:none;grid-template-areas:"estop" "route" "status" "conv" "boxes" "bring" "log"}
+  #c-conv,main:has(#c-bring details[open]) #c-conv{position:static}
   svg{max-height:60vh}
+  #c-bring .lbl{width:100%}            /* phone: each bring-up label on its own line */
+  #c-bring input[type=number]{width:84px}
+  #c-bring select{flex:1}
   .card{padding:18px}
   #foot{margin-left:0}
   button.primary,button.danger{font-size:17px;padding:12px 26px}
@@ -221,6 +245,13 @@ input[type=number]:focus-visible{outline:3px solid var(--brand);outline-offset:2
           <button class="small" data-jog="200">+200 mm</button>
           <button class="small" id="motoroff">Motor off</button>
         </div>
+        <div class="row" style="margin-top:10px"><span class="lbl">Motor on</span>
+          <button class="small" data-spin="-1">&#9664; Reverse</button>
+          <button class="small" data-spin="1">Forward &#9654;</button>
+          <button class="small" id="spinstop">Stop</button>
+          <span id="spinout" class="muted"></span>
+        </div>
+        <p class="muted" style="margin:4px 0 0">Motor on runs at belt speed until Stop (10 min max). Start your stopwatch once it is up to speed; the counter shows motor and roller revolutions.</p>
         <div class="row" style="margin-top:10px"><span class="lbl">Arms</span><span id="armbtns" class="row"></span></div>
         <div id="armzero" style="margin-top:10px"></div>
         <p class="muted" style="margin:4px 0 0">Arm 0 point: nudge each arm until it sits flush with the conveyor, then press Set as 0. Saved in flash.</p>
@@ -450,6 +481,8 @@ function buildCards() {
     post('/api/jog?mm=' + Math.abs(v) + '&dir=' + (v > 0 ? 1 : -1));
   });
   $('#motoroff').onclick = () => post('/api/motor?on=0');
+  document.querySelectorAll('[data-spin]').forEach(b => b.onclick = () => post('/api/spin?dir=' + b.dataset.spin));
+  $('#spinstop').onclick = () => post('/api/stop');
   $('#run').onclick = () => post('/api/route?start=' + sel.start + '&box=' + sel.box).then(ok => { if (ok) { sel.box = 0; } });
   $('#stop').onclick = () => post('/api/stop');
   $('#logclear').onclick = () => { if (confirm('Clear the run log on the ESP32?')) post('/api/log/clear').then(() => { lastLogCount = -1; }); };
@@ -472,6 +505,10 @@ function render() {
   $('#b-nomotor').hidden = st.motor !== false;
   $('#b-wifi').textContent = (st.wifi.mode === 'ap' ? 'Hotspot ' : 'Wi-Fi ') + st.wifi.ssid + ' · ' + st.wifi.ip;
   $('#estop').hidden = !st.estop;
+  if (st.belt.motor_revs !== undefined && !r.box) {
+    $('#spinout').textContent = 'motor ' + st.belt.motor_revs.toFixed(2) + ' rev · roller '
+      + st.belt.roller_revs.toFixed(2) + ' rev' + (r.elapsed_ms ? ' · ' + (r.elapsed_ms / 1000).toFixed(1) + ' s' : '');
+  }
 
   if (sel.box && st.boxes[sel.box - 1].state !== 'free') sel.box = 0;
   [...$('#starts').children].forEach((x, i) => { x.classList.toggle('sel', sel.start === i + 1); x.disabled = b; });
@@ -502,7 +539,7 @@ function render() {
   const part = $('#part');
   if (b && r.start && r.box) {
     const from = st.geom.starts[r.start - 1], to = st.geom.boxes[r.box - 1];
-    const dir = to >= from ? 1 : -1, dist = Math.abs(to - from);
+    const dir = to > from ? 1 : -1, dist = Math.abs(to - from);
     let y = mmY(from + dir * Math.min(st.belt.mm, dist)), x = 150;
     const extra = st.belt.mm - dist;
     if (extra > 0) {

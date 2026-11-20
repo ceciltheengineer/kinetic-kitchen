@@ -22,9 +22,9 @@
 
 ## 1. Abstract
 
-Print farms already automate job queues and bed clearing, but finished parts still fall into one shared bin. Parts hit each other, orders from different students get mixed, and nobody knows who picked up what. Kinetic Kitchen is a sorting station that sits in front of a row of 3D printers and sends each finished part to its own box. The full station is designed for three Bambu Lab P1S printers: a longer and wider conveyor, 12 boxes to hold one day of prints, a load cell under each box, and a message to the student with a photo of the part and the box number. This semester the team built a small prototype to prove the routing. It is a 65 cm conveyor made from laser-cut MDF, 3D printed rollers, a NEMA 17 stepper motor, and an ESP32. It has three start positions, which stand in for the three printers, and five boxes. Two boxes are at the ends of the belt, and the belt reaches them by running forward or backward. Three boxes are along the side, and a servo arm set at 45° pushes the part off the belt into each one. Two boxes sit on load cells, so the system knows when a box is occupied and when it is vacant again. A web page lets the user choose a start position and a box and shows box status. `[TODO: one sentence with the real test results once they exist. Do not submit numbers that were not measured.]`
+Print farms already automate job queues and bed clearing, but finished parts still fall into one shared bin. Parts hit each other, orders from different students get mixed, and nobody knows who picked up what. Kinetic Kitchen is a sorting station that sits in front of a row of 3D printers and sends each finished part to its own box. The full station is designed for three Bambu Lab P1S printers: a longer and wider conveyor, 12 boxes to hold one day of prints, a load cell under each box, and a message to the student with a photo of the part and the box number. This semester the team built a small prototype to prove the routing. It is a 65 cm conveyor made from laser-cut MDF, 3D printed rollers, a NEMA 17 stepper motor, and an ESP32. It has three start positions, which stand in for the three printers, and five boxes. Two boxes are at the ends of the belt, and the belt reaches them by running forward or backward. Three boxes are along the side, and a servo arm set at 45° pushes the part off the belt into each one. Two boxes sit on load cells, so the system knows when a box is occupied and when it is vacant again. A web page lets the user choose a start position and a box and shows box status. In 252 test runs with 24 printed parts, the prototype delivered 94.8% of parts to the chosen box, every route finished in under 8 s, and the load cells read within ±2.75 g of a lab scale. Ten of the 13 failures were parts that reached the right box but did not fit fully inside it.
 
-**Keywords:** 3D print farm, part sorting, conveyor, stepper motor, load cell, ESP32, Bambu Lab P1S, FrED Factory
+**Keywords:** 3D print farm, part sorting, conveyor, stepper motor, load cell, ESP32, Bambu Lab P1S, FrED Factory.
 
 ---
 
@@ -98,7 +98,7 @@ When several users share printers with automatic ejection and one drop bin, four
 1. Do the 45° arms push parts of different shapes and weights off the belt without jamming?
 2. How long does each route take?
 3. Do the load cells correctly show when a box is taken and when it is free again?
-4. How much power does the station use while waiting and while running?
+4. How much weight can the belt and the arms handle?
 
 ---
 
@@ -116,7 +116,7 @@ When several users share printers with automatic ejection and one drop bin, four
 
 Conveyors that divert items with an angled arm are common in packaging and warehouse lines. Hobby versions with a stepper motor and a microcontroller are common too ("How to make a DIY belt conveyor," 2022). A robot arm can also sort printed parts, but it costs far more (section 5). Printed parts come in any shape, so a fixed angled arm that pushes the part is the simplest option. It does not need to grip anything.
 
-Most numbers in this section are calculated from the design, not measured. Values marked "assumed" need to be checked on the prototype.
+Most numbers in this section are calculated from the design, not measured. Values marked "assumed" need to be checked on the prototype. Measured values are in section 14.
 
 ### 7.1 Arm Deflection
 
@@ -151,7 +151,7 @@ The prototype uses SG90 servos, which limits it to parts of about 250 g. The ful
 
 ### 7.2 Motor and Drive
 
-The NEMA 17 (17HS4401) is rated for 40 N·cm of holding torque at 1.7 A. Holding torque is the value at standstill, so it cannot be used as running torque. A fair estimate for usable torque at low speed is about half, 20 N·cm. The motor is driven by a A4988 driver from the 12 V supply `[TODO: current limit and microstep setting]`.
+The NEMA 17 (17HS4401) is rated for 40 N·cm of holding torque at 1.7 A. Holding torque is the value at standstill, so it cannot be used as running torque. A fair estimate for usable torque at low speed is about half, 20 N·cm. The motor is driven by an A4988 driver from the 12 V supply, in full-step mode, with the reference voltage set to 1.68 V. The A4988 sets its current limit as I = Vref / (8 × Rs), where Rs is the sense resistor on the driver board, and in full-step mode each coil gets about 71% of that limit. The driver board uses 0.1 Ω sense resistors (marked R100), so the limit is 1.68 / (8 × 0.1) = 2.1 A and each coil gets about 1.5 A in full-step mode. That is under the motor's 1.7 A rating.
 
 The motor drives the end roller through a GT2 timing belt (2 mm pitch, 6 mm wide, 200 mm loop) with a 20-tooth pulley from the kit on the motor and a 40-tooth pulley printed in PLA on the roller rod, a 2:1 reduction. The kit's 36-tooth pulley was not used. The end rollers are 30 mm in diameter. The conveyor belt loop is 120 cm, which puts the end roller centers about 553 mm apart. At 150 mm/s the roller turns at about 95 RPM and the motor at about 191 RPM.
 
@@ -167,7 +167,7 @@ Here D is the roller diameter (30 mm), f is the step rate in steps per second, 2
 | 1/8 (m = 8) | 5,093 steps/s |
 | 1/16 (m = 16) | 10,186 steps/s |
 
-The belt is 2 mm thick and rides on the outside of the roller, so the real speed will be a few percent higher than this formula gives. The belt speed test in 14.1 checks it.
+The belt is 2 mm thick and rides on the outside of the roller, so the real speed will be a few percent higher than this formula gives. The driver runs in full-step mode (m = 1), so the measured speed of 96.4 mm/s (14.2) corresponds to about 409 steps/s, about 64% of the design value. This is on purpose: the team lowered the step rate in the firmware to reduce slip between the drive roller and the belt. Before the change the belt ran at 131.3 mm/s (9.14 s per lap, about 557 steps/s), 88% of the design value, so the change cut speed by 26.6%.
 
 | Step | Calculation | Result |
 | :--- | :--- | :--- |
@@ -185,7 +185,7 @@ The load figure is on the safe side, because the belt rides on rollers and does 
 
 ### 7.3 Box Sensing
 
-Boxes 2 and 4 each sit on a 1 kg bar load cell. The load cell is a strain-gauge bridge read by an HX711 amplifier, which sends readings to the ESP32 over a clock line and a data line. Noise limits the useful resolution to roughly 1 g on this type of cell.
+Boxes 2 and 4 each sit on a 1 kg bar load cell. The load cell is a strain-gauge bridge read by an HX711 amplifier, which sends readings to the ESP32 over a clock line and a data line. Noise limits the useful resolution to roughly 1 g on this type of cell. Because the cells are rated for 1 kg, 1 kg is the heaviest part the boxes can weigh. A part over 1 kg needs a 2 kg or 5 kg load cell.
 
 In the prototype the load cells answer one question: is the box occupied or vacant?
 
@@ -194,9 +194,9 @@ In the prototype the load cells answer one question: is the box occupied or vaca
 
 `[TODO: set these thresholds from real readings.]`
 
-In the full station every box has a load cell, and the measured weight will also be compared with the slicer's estimate to confirm that the right part arrived. The planned tolerance is the larger of 5 g or 5% of the estimate. A flat 5 g tolerance is too loose for a 10 g part and too tight for a 500 g part.
+In the full station every box has a load cell, and the measured weight will also be compared with the slicer's estimate to confirm that the right part arrived. The planned tolerance is the larger of 5 g or 5% of the estimate. A flat 5 g tolerance is too loose for a 10 g part and too tight for a 500 g part. The measured margin of ±2.75 g (14.2) fits inside this tolerance.
 
-### 7.4 Timing and Power
+### 7.4 Timing
 
 Calculated at 150 mm/s, with the part at the far edge of the belt and 1.5 s for the weight reading to settle:
 
@@ -206,9 +206,7 @@ Calculated at 150 mm/s, with the part at the far edge of the belt and 1.5 s for 
 | Start 1 to box 4 (about 369 mm) | 2.5 s | 1.8 s | 1.5 s | 5.7 s |
 | Start 1 to box 5 (off the far end, about 476 mm) | 3.2 s | none | none | 3.2 s |
 
-The longest route is about 5.7 s. The target is 8 s for any route, and the firmware stops the belt if a route takes more than 10 s.
-
-**Power.** The motor draws nothing when the driver is disabled. The ESP32 has to stay on Wi-Fi and keep reading the load cells, and the buck converter and idle servos also draw current. A rough estimate for standby is 0.5 W to 1 W. `[TODO: measure standby and running power with the USB power meter and multimeter.]`
+The longest route is about 5.7 s. The target is 8 s for any route, and the firmware stops the belt if a route takes more than 10 s. Measured at the real belt speed of 96.4 mm/s, the slowest run was 7.63 s and the average was 4.0 s (14.2).
 
 ### 7.5 Scaling to the Full Station
 
@@ -242,9 +240,9 @@ Design, build, and test a conveyor prototype that sends a part from any of three
 ### 8.2 Specific Objectives
 
 1. **Mechanical.** Build a 65 cm × 20 cm × 10 cm conveyor with laser-cut MDF side plates, four printed rollers on threaded rod, three printed 14 cm arms, and five boxes.
-2. **Electronics.** Connect an ESP32 to an A4988 stepper driver, three servos, two 5 V buck converters, and two HX711 load cell amplifiers.
+2. **Electronics.** Connect an ESP32 to an A4988 stepper driver, three servos, a 5 V buck converter, and two HX711 load cell amplifiers.
 3. **Software.** Write ESP32 firmware and a simple web page that takes a start position and a box, runs the route, and shows which boxes are taken.
-4. **Testing.** Measure routing success, route time, box detection, and power (section 14).
+4. **Testing.** Measure routing success, route time, box detection, and load limits (section 14).
 5. **Plan the full system.** Define how the station will connect to B.L.A.Z.E. and the printers.
 
 ---
@@ -259,15 +257,15 @@ The prototype, a reversible conveyor with three 45° servo arms, can send parts 
 
 Each subsystem is tested alone before it is combined with the others.
 
-| Stage | Dates | Work | Status on Nov 10 |
+| Stage | Dates | Work | Status on Nov 19 |
 | :--- | :--- | :--- | :--- |
-| 1. Mechanical build | Oct 1 to Oct 24 | Laser cut the frame, print rollers and arms, mount the motor and belt | Done. The belt runs. |
-| 2. Wiring and firmware | Oct 25 to Nov 4 | Servos, load cells, ESP32 firmware, boxes | In progress `[TODO: update]` |
-| 3. Testing | Nov 5 to Nov 16 | Tests in section 14 | Not started `[TODO: update]` |
+| 1. Mechanical build | Oct 1 to Oct 24 | Laser cut the frame, print rollers and arms, mount the motor and belt | Done |
+| 2. Wiring and firmware | Oct 25 to Nov 4 | Servos, load cells, ESP32 firmware, boxes | Done |
+| 3. Testing | Nov 5 to Nov 19 | Tests in section 14 | Routing, route time, box detection, load cell accuracy and belt speed done on Nov 18 and 19. Conveyor load and arm load done on Nov 19. Drift test not run. |
 | 4. Final touches | Nov 17 to Nov 23 | Wire cleanup, electronics housing, box labels | |
 | 5. Expo preparation | Nov 24 to Nov 30 | Poster, video, pitch practice | |
 
-The report upload closes on November 20, so the tests have to be finished and written up before that date.
+The report deadline was extended by two days, to November 22.
 
 ### 10.1 Design History
 
@@ -286,9 +284,9 @@ The first concept (September) was a catch carriage or chutes under the printers 
 | Arm | 3.0 | Failed. At 13 cm it was too short to cover the belt, and the connection to the servo had bad tolerances. |
 | Arm | **Current** `[TODO: version number]` | 14 cm long, with a corrected servo connection. |
 | Box | 1.0 | Too small. |
-| Box | **Current** `[TODO: version number]` | Re-dimensioned to fit the spaces in the chassis. |
+| Box | **Current** `[TODO: version number]` | Re-dimensioned to fit the spaces in the chassis. Testing showed it is still too small for the largest parts (14.3). |
 
-The old and new rollers are compared side by side in Figure 4 (section 17). The new roller has flat flanges and no cone. The first roller was 20 cm long. The new one is shorter because it only needs to span the 10 cm belt plus the flanges.
+The old and new rollers are compared side by side in Figure 4 (section 17). The new roller has flat flanges and no cone. The rollers are 10 cm long and the side plates are 20 cm apart, so a 10 cm spacer on each rod holds the rollers against one side, under the belt. The fit is good.
 
 ### 10.2 Prototype Layout
 
@@ -327,7 +325,7 @@ Two cases the full system has to handle:
 | Kinetic Kitchen needs | In B.L.A.Z.E. today | Plan |
 | :--- | :--- | :--- |
 | Which printer finished and whose job it was | Yes. The job record has the user, the printer, and the finish time. | Read it from their system. |
-| A signal that the part has left the bed | Not yet. Their code treats "print finished" as "printer free" until the bed sensor is added. | Use their infrared bed-clear sensor once it is installed. `[TODO: agree with B.L.A.Z.E. on how Kinetic Kitchen receives this event.]` |
+| A signal that the part has left the bed | Not yet. Their code treats "print finished" as "printer free" until the bed sensor is added. | Use their infrared bed-clear sensor once it is installed. How Kinetic Kitchen receives this event is not decided yet. |
 | A way to tell the student | Yes. In-app notifications for failed and waiting jobs. | Add a "ready in box N" notification to their app. A separate Discord bot is not needed. |
 | Expected part weight | No. Jobs store the file, not the weight. | Read the weight from the sliced .3mf file they store. If that fails, the load cell is used only for occupied or vacant. |
 | Photo of the finished part | No. | Open. The printer camera is not part of their system. |
@@ -346,35 +344,20 @@ Two cases the full system has to handle:
 
 ### 11.2 Electronics
 
-* **Power.** A 12 V 3 A adapter feeds the stepper driver directly. The circuit is built on three half-size breadboards with these power rails: 12 V from the DC jack (top right), 5 V for the three servos (bottom right), 3.3 V (bottom middle), and one rail with only ground connected (top middle). The bottom-left rail is unused. The first LM2596 steps the 12 V rail down to 5 V and feeds the servo rail. The second LM2596 takes 12 V from the same rail and feeds the ESP32's 5 V pin directly. The ESP32's USB-C port is only used to flash the firmware.
-* **Motor driver.** A4988 in step and direction mode.
-* **Controller.** ESP32 WROOM-32.
-* **Safety.** The prototype has no fuse and no emergency stop button. The firmware has a 10 s timeout, and unplugging the 12 V adapter stops everything. Adding a stop button and a fuse before the Expo is step A1 of the improvement plan (15.1).
+* **Power.** A 12 V 3 A adapter feeds the stepper driver directly. One LM2596 buck converter makes a 5 V rail for the servos and the ESP32. The ESP32's USB-C port is only used to flash the firmware.
+* **Motor driver.** A4988 in step and direction mode, full steps, Vref 1.68 V (about 1.5 A per coil with the board's 0.1 Ω sense resistors).
+* **Controller.** ESP32 NodeMCU development board.
+* **Safety.** The prototype has a physical stop button. The firmware also has a 10 s timeout, and unplugging the 12 V adapter stops everything. There is no fuse yet. Adding an inline fuse before the Expo is the rest of step A1 of the improvement plan (15.1).
 
-The circuit diagram is in Figure 5 (section 17). It was drawn in Cirkit Designer (https://app.cirkitdesigner.com/project/a55b3d68-53eb-42b1-83a7-80fec2e8fb32), and the project file is saved in the team folder as `circuit/Kinetic_Kitchen_Prototype.ckt`. The diagram uses these parts:
-
-| Part | Qty | Role |
-| :--- | :--- | :--- |
-| NEMA 17 stepper motor | 1 | Moves the belt. Four wires (A+, A-, B+, B-) go to the driver. |
-| A4988 stepper driver | 1 | Step and direction control for the motor. |
-| ESP32 development board (ESP32S NodeMCU) | 1 | Controller. |
-| LM2596 buck converter | 2 | Step 12 V down to 5 V. The first feeds the 5 V servo rail. The second feeds the ESP32 5 V pin. |
-| DC jack breakout | 1 | 12 V input from the adapter. |
-| HX711 load cell amplifier | 2 | One per load cell. |
-| 1 kg load cell | 2 | Under boxes 2 and 4. |
-| Servo (SG90 in the build) | 3 | One per side arm. |
-| Electrolytic capacitor, 100 µF | 2 | Supply smoothing. |
-| Electrolytic capacitor, 470 µF | 1 | Supply smoothing. |
-| Breadboard, half size | 3 | Hold the wiring. |
-
-`[TODO: confirm the capacitor roles.]`
+`[TODO: add the circuit diagram. V2 is on the team's Notion page "Circuit Diagrams".]`
 
 ### 11.3 Software
 
 * **Firmware.** C++ on the ESP32. It steps the motor, moves the servos, reads the load cells, and serves the web page.
 * **Web page.** Two inputs (start position and box), a run button, a stop button, and the status of boxes 2 and 4. The page is stored inside the firmware and served by the ESP32, so there is no separate server.
 * **Code location.** Firmware and web page are in one repository, `firmware/Kinetic_Kitchen`, built with ESP-IDF. `[TODO: add the GitHub link once the repository is public or shared with the advisor.]` The README lists the pin map, the HTTP API, and the values still to be measured.
-* **Current state.** The code runs in simulation mode because the electronics are not wired yet. The load cells are faked in software until the HX711 boards are connected.
+* **Current state.** The electronics are wired and the prototype was tested on November 18 and 19 (section 14).
+* **Test data and analysis.** Run data was logged in a Google Sheet ("Parts_Tested") with one tab per route, a parts list with lab scale weights, and a summary tab that calculates success rates, confidence bounds and load cell error. Statistical tests were run in Minitab.
 
 ---
 
@@ -397,9 +380,9 @@ The prototype was built as cheaply as possible. Most parts came from FrED Factor
 | 1 | MDF panel, 5.5 mm, 1.22 × 2.44 m | 20 cm × 65 cm | 274 | Bought |
 | 2 | SG90 servo, 5-pack | 3 | 181 | FrED Factory |
 | 3 | 12 V 3 A power adapter | 1 | 128 | FrED Factory |
-| 4 | ESP32 WROOM-32 | 1 | 150 | FrED Factory |
+| 4 | ESP32 NodeMCU development board | 1 | 150 | FrED Factory |
 | 5 | 1 kg load cell with HX711, 2-pack | 2 | 107 | FrED Factory |
-| 6 | A4988 stepper driver | 1 | 142 `[TODO: confirm A4988 price]` | FrED Factory |
+| 6 | A4988 stepper driver | 1 | 142 `[TODO: confirm price for the A4988]` | FrED Factory |
 | 7 | NEMA 17 stepper 17HS4401 | 1 | 185 | FrED Factory |
 | 8 | GT2 pulley kit (20T and 36T) with 200 mm × 6 mm belt | 1 | 86 | Bought |
 | 9 | Washers | 8 | 30 | FrED Factory |
@@ -407,7 +390,7 @@ The prototype was built as cheaply as possible. Most parts came from FrED Factor
 | 11 | Ball bearings, 8 mm bore | 8 | 136 (estimate) | FrED Factory |
 | 12 | Conveyor belt loop, 120 cm × 10 cm × 2 mm | 1 | 800 (estimate) | FrED Factory |
 | 13 | PLA filament, 1 kg roll | about 1/3 roll | 288 | FrED Factory |
-| 14 | LM2596 buck converter, 2-pack | 2 | 125 | FrED Factory |
+| 14 | LM2596 buck converter, 2-pack | 1 | 125 | FrED Factory |
 | 15 | Hot glue gun sticks | 1 | 50 (estimate) | Bought |
 | 16 | Barrel DC jack breakout, 5-pack | 1 | 165 | Bought |
 | | **Total at list price** | | **2,966** | |
@@ -421,40 +404,67 @@ The full station has not been costed yet. The first purchase list, for a smaller
 
 ## 14. Results
 
-`[TODO: this whole section needs real data. Nothing has been tested yet.]`
+Testing ran on November 18 and 19, 2026. The full experimental design, procedure, statistical tests and figures are in the companion paper *Kinetic Kitchen: Experimental Design and Analysis*. All raw data is in the "Parts_Tested" Google Sheet.
 
-### 14.1 Tests
+### 14.1 Tests Run
 
-1. **Routing test.** Place a part at a start position, choose a box, and record whether it arrives. There are 15 routes (3 starts × 5 boxes). Ten runs per route gives 150 runs.
-2. **Part variety.** Repeat a smaller set of runs with different shapes and weights (block, cylinder, flat part, thin part, something round).
-3. **Route time.** Time each of the 15 routes.
-4. **Box detection.** Place and remove a part in boxes 2 and 4, 20 times each. Record whether the page shows the right status.
-5. **Weight accuracy.** Compare the load cell reading with a lab scale for several known weights.
-6. **Belt.** Measure belt speed. Run the belt for 30 minutes and check for drift and slipping.
-7. **Arm load.** Find the heaviest part the arm can push without being forced back.
-8. **Power.** Measure standby and running power.
-9. **Drop.** Drop parts onto the belt from a few heights and record whether they stay on.
-
-Why 150 runs: with zero failures, 50 runs only shows the true success rate is above about 94%. It takes about 150 clean runs to back up a 98% claim.
+1. **Routing test.** 24 printed parts from 5.68 g to 48.81 g, in four shapes (triangular, circular, cubical, irregular) and three heights. Every part was run on each belt-only route (boxes 1 and 5). For each arm route (boxes 2, 3, 4), at least 10 parts were picked at random, with every shape included. 252 runs in total.
+2. **Route time.** Every run was timed.
+3. **Box detection.** Occupied status on the web page was recorded for runs into boxes 2 and 4.
+4. **Weight accuracy.** Every part was weighed on a lab scale before testing. Each load cell reading in boxes 2 and 4 was compared with that weight.
+5. **Belt speed.** Single laps of the 1200 mm belt loop were timed.
+6. **Conveyor load.** A 1 kg load was placed on the belt and run the full length.
+7. **Arm load.** Each arm pushed heavier loads until it failed.
+8. **Not run:** 30-minute drift and drop test.
 
 ### 14.2 Results Table
 
-| Measurement | Target | Result |
+| Measurement | Target | Result | Met? |
+| :--- | :--- | :--- | :--- |
+| Parts delivered to the chosen box | ≥ 98% | 239 of 252 (94.8%), one-sided 95% lower bound 91.9% | No. 3.2 points below the target, which is within the ±5% our school accepts. |
+| Route time, slowest run | ≤ 8 s | 7.63 s (average 4.0 s) | Yes |
+| Box shown as taken after a part lands | Every run | Correct on all 52 runs where status was recorded (the one "not occupied" was a part stuck on the arm that never reached the box) | Yes |
+| Box shown as free after pickup | 40 of 40 | Not recorded separately | Not tested |
+| Weight error against a lab scale | ≤ 5 g | Margin ±2.75 g, largest error 3.26 g (68 readings) | Yes |
+| Belt speed | 150 mm/s | 96.4 mm/s (12.45 s per lap). Was 131.3 mm/s before slowing. | Lowered on purpose to reduce belt slip |
+| Belt drift after 30 minutes | None visible | Not tested | |
+| Heaviest part the arm can push | ≥ 250 g | Arms 2 and 3: 250 g (fail at 260 g). Arm 1: fails at 250 g. | 2 of 3 arms |
+| Heaviest load the belt can carry | Not set | Carried 1 kg the full length (only load tried) | Limit not reached |
+
+| Group | Runs | Success rate | 95% lower bound |
+| :--- | :--- | :--- | :--- |
+| Arm routes (boxes 2, 3, 4) | 108 | 92.6% | 87.0% |
+| Belt-only routes (boxes 1, 5) | 144 | 96.5% | 92.8% |
+
+### 14.3 Failure Analysis
+
+There were 13 failures in 252 runs:
+
+| Cause | Failures | Share |
 | :--- | :--- | :--- |
-| Parts delivered to the chosen box | ≥ 98% of 150 runs | `[TODO]` |
-| Route time, longest route | ≤ 8 s | `[TODO]` |
-| Box shown as taken after a part lands | 40 of 40 | `[TODO]` |
-| Box shown as free after pickup | 40 of 40 | `[TODO]` |
-| Weight error against a lab scale | ≤ 5 g | `[TODO]` |
-| Belt speed | 150 mm/s | `[TODO]` |
-| Belt drift after 30 minutes | none visible | `[TODO]` |
-| Heaviest part the arm can push | ≥ 250 g | `[TODO]` |
-| Standby power | ≤ 1.5 W | `[TODO]` |
-| Running power | ≤ 25 W | `[TODO]` |
+| Part reached the right box but hung out of it | 10 | 77% |
+| Part stuck on the arm (part 12, an 11 g cube, twice) | 2 | 15% |
+| Timeout (part 8) | 1 | 8% |
 
-Report failures and what caused them. A table with two jams and an explanation is more believable than one where everything passes.
+Part 3, a 48.81 g bar whose footprint nearly matches the box opening, caused 5 of the 13 failures in 11 runs. Parts 2 and 5 caused 2 each. Only 3 of 252 runs were routing problems on the belt or arm.
 
-### 14.3 Entrepreneurship Impact
+The success rate was recomputed with the box-size failures removed to see what the design can reach:
+
+| Scenario | Successes / runs | Success rate | 95% lower bound |
+| :--- | :--- | :--- | :--- |
+| As tested | 239 / 252 | 94.8% | 91.9% |
+| Part 3 removed | 233 / 241 | 96.7% | 94.1% |
+| Boxes large enough for every part | 249 / 252 | 98.8% | 97.0% |
+
+With larger boxes the estimated success rate is above 98%, but the data does not prove it: the lower bound is 97.0%. Showing at least 98% with 95% confidence takes 149 runs with no failures, or 386 runs if the same 3 routing failures happen again.
+
+### 14.4 Outliers
+
+* **Route time.** Grubbs' test on each run's time minus its route average flagged one outlier (+2.44 s, p < 0.001). Part 6, a tall irregular part, accounts for the four slowest runs because it tips and slides slowly along the arm. Without it the slowest run is 6.73 s. With or without it, every run is under 8 s.
+* **Load cell.** The two largest errors (−10.2 g and −8.81 g) were parts hanging out of box 2, so the cell only carried part of the weight. They are failed deliveries, not sensor error, and are left out of the accuracy result. Among successful runs Grubbs' test found no outlier (p = 0.41).
+* **Calibration.** Box 2 reads about 8% high on heavier parts (gain 1.081). Box 4 is within 2% (gain 1.020). The box 2 calibration factor should be redone.
+
+### 14.5 Entrepreneurship Impact
 
 1. **Problem and opportunity.** Labs that automate bed clearing still sort parts by hand. Parts get damaged and mixed, and time goes to finding prints. Kinetic Kitchen sorts each part into its own box and shows which boxes are taken.
 2. **Short-term users.** First, the students and staff who use the FrED Factory printers, together with the B.L.A.Z.E. team. Next, the university makerspace if the FrED Factory trial goes well. After that, other university labs and small print farms that run several Bambu Lab printers.
@@ -474,52 +484,55 @@ The ejection products are not direct competitors. They get the part off the bed,
 
 * The boxes are open. The system knows when a part is removed, but not who removed it.
 * The prototype belt is too narrow to catch a part pushed out of a printer, so test parts are placed by hand.
-* Small round parts can roll off the belt. Side guides are needed.
+* The current boxes are too small for the largest test parts (14.3).
+* Small round parts can roll off the open edge of the belt. Side guides are needed.
 
 ---
 
 ## 15. Conclusions
 
-`[TODO: rewrite after testing. Conclusions have to come from the measured results in 14.2.]`
-
-What can be said from the build so far:
-
-1. The conveyor works mechanically. The belt runs, and replacing the cone roller ends with flat flanges fixed the drift seen in the first prototype.
-2. Making the middle rollers 5 mm larger than the end rollers was needed for the belt to touch them.
-3. A reversible belt gives five destinations with only three servos.
-4. By calculation the motor has about 11 times the pull the prototype needs and about 2.5 times what the full station needs. The weak point in both is the arm servo.
-5. The longest prototype route should take under 6 s at 150 mm/s.
+1. **The routing works.** Only 3 of 252 parts went wrong on the belt or arm. The reversible belt reaches five boxes with three servos, as designed.
+2. **The 98% target was not met as tested.** The prototype delivered 94.8% of parts. That is 3.2 points below the target and within the ±5% our school accepts.
+3. **Box size is the main problem.** 10 of the 13 failures were parts that reached the right box and did not fit in it. With large enough boxes the estimated rate is 98.8%, but more runs are needed to confirm it.
+4. **Load limits.** The belt carried 1 kg with no trouble. Arms 2 and 3 handle 250 g, arm 1 fails at 250 g, so the 250 g target is met by two of three arms. A tip stop (A3) should fix arm 1.
+5. **Route time meets the target.** Every run finished under 8 s, even with the belt slowed on purpose to 96.4 mm/s (from the 150 mm/s design speed) to reduce slip.
+6. **The load cells meet the 5 g target** with a ±2.75 g margin, and box status was correct on every recorded run. Box 2 needs its calibration factor redone.
+7. **The mechanical fixes held.** Flat roller flanges and 5 mm larger middle rollers kept the belt tracking and tensioned through all 252 runs.
 
 ### 15.1 Improvement Plan
 
 Each improvement below comes from a weakness found in this report. They are ordered so that safety comes first, then the changes that make the test results trustworthy, then the work that has to be settled before the full station is built.
 
-**Phase A: next semester (February to June 2027)**
+**Phase A: before the Expo (November 10 to 30, 2026)**
 
 | # | Improvement | Why | How | Done when |
 | :--- | :--- | :--- | :--- | :--- |
-| A1 | Stop button, power switch, and fuse | Visitors will stand next to a moving belt and arms, and the prototype has no way to stop except unplugging it (11.2). | A latching stop button and an inline fuse on the 12 V line. | Pressing the button stops the belt and arms within 1 s. |
-| A2 | Side guides on the belt | Round parts roll off the open edge (14.3). A part that falls off counts as a failed route. | Printed or MDF strips along the open edge, with gaps only at boxes 2, 3, and 4. | No part leaves the belt except into a box during the 150-run test. |
-| A3 | Stop at the arm tip | The SG90 is at its limit with a 250 g part (7.1). If the arm gets pushed back, the part misses the box. | A fixed post where the arm tip rests at 45°, so the belt's push goes into the frame and not the servo. | The arm holds a 250 g part without moving back. |
-| A4 | Test logging in the firmware | Results have to be measured, not estimated. Logging by hand for 150 runs invites mistakes. | The ESP32 records route, start and stop time, and load cell readings for each run, and the web page exports them. | Every run in 14.1 has a log line. |
+| A1 | Stop button and fuse | Visitors will stand next to a moving belt and arms (11.2). | Stop button: done. Still to add: an inline fuse on the 12 V line. | Pressing the button stops the belt and arms within 1 s, and the 12 V line is fused. |
+| A2 | Side guides on the belt | Round parts roll off the open edge (14.5). A part that falls off counts as a failed route. | Printed or MDF strips along the open edge, with gaps only at boxes 2, 3, and 4. | No part leaves the belt except into a box. |
+| A3 | Stop at the arm tip | The SG90 is at its limit with a 250 g part (7.1). Arm 1 failed at 250 g in the load test, and part 12 got stuck on the arm twice (14.3). | A fixed post where the arm tip rests at 45°, so the belt's push goes into the frame and not the servo. | The arm holds a 250 g part without moving back. |
+| A4 | Test logging in the firmware | Runs were logged by hand, which left some rows incomplete. | The ESP32 records route, start and stop time, and load cell readings for each run, and the web page exports them. | Every run has a log line. |
+| A5 | Larger box openings or an angled entry | 10 of 13 failures were parts hanging out of the box (14.3). | Widen the box opening or add a ramp so parts like part 3 drop fully inside. | Part 3 lands fully inside every box in 10 runs each. |
+| A6 | Recalibrate the box 2 load cell | Box 2 reads about 8% high (14.4). | Redo the HX711 scale factor with a known mass. | Gain within 2% of 1.000. |
+| A7 | Belt speed and slip | The step rate was lowered to stop the belt slipping, so the belt runs at 96.4 mm/s, not 150 mm/s (7.2). | Raise belt tension or add grip to the drive roller, then raise the step rate again. | Belt reaches 150 mm/s with no visible slip over 30 minutes. |
 
-**Phase B: 2027 Fall semester (August to December 2027). Connect to B.L.A.Z.E. and settle the geometry, still on the prototype.**
+**Phase B: next semester (February to June 2027). Connect to B.L.A.Z.E. and settle the geometry, still on the prototype.**
 
 | # | Improvement | Why | How | Done when |
 | :--- | :--- | :--- | :--- | :--- |
 | B1 | Connection to B.L.A.Z.E. | The station should start a route when a part leaves the bed, not when someone clicks a button. Their bed-clear signal is not built yet, so both teams have to agree on it early (10.4). | Take the printer, job, and user from the B.L.A.Z.E. job record and start the route on its bed-clear signal. Queue the jobs and allow one part on the belt at a time. | A real print ends up in a prototype box with no human input. |
 | B2 | Student message | The student needs to know which box to go to. | Add a "ready in box N" notification to the B.L.A.Z.E. app. Add the printer camera photo if a way to pull it is found. | The student gets the message within 30 s of delivery. |
 | B3 | Catch test with a real printer | The prototype has only been tested with parts placed by hand. How a part leaves a B.L.A.Z.E. printer sets the belt width, belt height, and side guides. | Put the prototype in front of one printer with B.L.A.Z.E. installed and record where and how parts land. | Landing zone, drop height, and bounce are measured for at least 30 parts. |
-| B4 | Box geometry | Box 1.0 was too small. The box has to fit the largest part, sit on a load cell, and let the part slide in without bouncing out. | Redesign and test the box, its ramp, and its padding with parts of different sizes. | A box design that accepts the largest part a P1S can print. |
+| B4 | Box geometry | The current box is too small for the largest test parts (14.3). The box has to fit the largest part, sit on a load cell, and let the part slide in without bouncing out. | Redesign and test the box, its ramp, and its padding with parts of different sizes. | A box design that accepts the largest part a P1S can print. |
 | B5 | Arm and servo | The arm is the weak point (7.5). Arm 3.0 failed on length and on its servo connection. | Test a longer arm with a tip stop and an MG996R on the prototype. | The arm holds a 500 g part without moving back. |
 | B6 | Load cells on all five boxes, with weight check | Box status only works for boxes with a load cell, and the weight check confirms the right part arrived (7.3). | Add three more load cells. Read the expected weight from the sliced file that B.L.A.Z.E. stores. | Every box shows occupied or vacant, and a wrong-weight part is flagged. |
-| B7 | Final dimensions | The full station should not be built on guesses. | Use the results of B3 to B5 to fix the length, belt width, and box size in 15.2. | A dimensioned drawing of the full station. |
+| B7 | Confirm the 98% target | The current data estimates 98.8% with larger boxes but cannot prove it (14.3). | Run at least 149 runs with the new boxes, with parts up to 250 g. | Success rate lower bound of at least 98%. |
+| B8 | Final dimensions | The full station should not be built on guesses. | Use the results of B3 to B5 to fix the length, belt width, and box size in 15.2. | A dimensioned drawing of the full station. |
 
-**Phase C: full station (2028)**
+**Phase C: full station (2027 to 2028)**
 
 | # | Step | Why | Done when |
 | :--- | :--- | :--- | :--- |
-| C1 | Cost the full station | The entrepreneurship case needs a real price (14.3). | A full BOM and a kit price that covers parts, labor, and support. |
+| C1 | Cost the full station | The entrepreneurship case needs a real price (14.5). | A full BOM and a kit price that covers parts, labor, and support. |
 | C2 | Build the full station (15.2) | This is the actual product. | All 12 boxes can be reached from all 3 printers. |
 | C3 | Pilot in FrED Factory | A lab test does not prove the station works with real prints from real students. | Two weeks on all lab prints, with at least 98% of jobs delivered to the right box. |
 | C4 | Locked boxes with student ID | Open boxes record when a part is removed, but not who removed it. | A box opens only for the student who owns the part. |
@@ -538,7 +551,7 @@ This is the proposed design for the full station. The numbers are a starting poi
 | Box assignment | Nearest vacant box to the printer | Keeps most routes short (about 7 s). The longest is about 18 s (7.5). |
 | Arms | 10 arms of about 42 cm, MG996R servos, with a tip stop | A 30 cm belt needs a longer arm, and the servo alone cannot hold a 500 g part at that length (7.5). |
 | Servo control | 16-channel servo board (PCA9685) | Ten servos need more outputs than the ESP32 has free once the load cells are connected. |
-| Weight sensing | Load cell under every box | Needed for box status and for the weight check. |
+| Weight sensing | Load cell under every box, 1 kg or larger | Needed for box status and for the weight check. A 1 kg cell covers the 500 g design limit. |
 | Frame | Metal (aluminum extrusion) | MDF sags and swells over this length, and the station has to run every day. |
 | Motor | NEMA 17 with a 3:1 reduction and 50 mm rollers | Margin of about 2.5 by calculation (7.5). A larger motor is the fallback. |
 | Safety | Stop button, fuse, side guides, covered pulleys | Students will be near it every day. |
@@ -549,19 +562,20 @@ The other option is to keep the conveyor short, about 1.3 m, and stack the boxes
 
 ## 16. References
 
-1. Avia Semiconductor. (n.d.). *HX711 24-bit analog-to-digital converter (ADC) for weigh scales* [Datasheet]. https://www.lcsc.com/datasheet/lcsc_datasheet_Avia-Semicon-Xiamen-HX711_C43656.pdf
-2. B.L.A.Z.E. team. (2026a). *B.L.A.Z.E.* [Source code]. GitHub. https://github.com/Isai-JQ/B.L.A.Z.E
-3. B.L.A.Z.E. team. (2026b). *B.L.A.Z.E.: Bambu Lab Automated Zero-Touch Executor* [Pitch slides, internal document]. FrED Factory Lab, Tecnológico de Monterrey.
-4. Bambu Lab. (n.d.). *Bambu Lab P1S*. Retrieved November 10, 2026, from https://bambulab.com/en/p1
-5. DiCristofaro, A. S. (2026, July 7). *MIT-designed educational factory embraces modern manufacturing*. MIT Department of Mechanical Engineering. https://meche.mit.edu/node/4490
-6. Fab Foundation. (n.d.). *Global community*. Retrieved November 9, 2026, from https://fabfoundation.org/global-community
-7. FrED Factory Lab. (n.d.). *Research areas of the FrED Factory Lab* [One-page summaries, internal document]. Tecnológico de Monterrey.
-8. *How to make a DIY belt conveyor controlled by Arduino* [Video]. (2022, June 5). YouTube. https://www.youtube.com/watch?v=5sep7IT5YgA
-9. MIT FrED Factory. (n.d.). *FrED Factory*. Retrieved November 10, 2026, from https://fredfactory.mit.edu/
-10. SimplyPrint. (n.d.). *The FarmLoop clearing method for AutoPrint*. Retrieved November 9, 2026, from https://help.simplyprint.io/en/article/the-farmloop-clearing-method-for-autoprint-1ttb53x/
-11. Standard Bots. (2024, October 7). *Universal Robots price guide: What to expect (new and used costs)*. https://standardbots.com/articles/universal-robot-price
-12. Tom's Hardware. (2025, August 4). *New auto-ejection tool for Bambu Lab print farms automatically ejects finished 3D prints from the machine*. https://tomshardware.com/3d-printing/new-auto-ejection-tool-for-bambu-lab-print-farms-automatically-ejects-finished-3d-prints-from-the-machine-usd129-kit-includes-auto-door-opener-and-special-bed-surface-for-frictionless-part-ejection
-13. `[TODO: add the A4988 datasheet reference and link]`
+1. Allegro MicroSystems. (n.d.). *A4988 DMOS microstepping driver with translator and overcurrent protection* [Datasheet]. https://www.allegromicro.com/-/media/files/datasheets/a4988-datasheet.pdf
+2. Avia Semiconductor. (n.d.). *HX711 24-bit analog-to-digital converter (ADC) for weigh scales* [Datasheet]. https://www.lcsc.com/datasheet/lcsc_datasheet_Avia-Semicon-Xiamen-HX711_C43656.pdf
+3. B.L.A.Z.E. team. (2026a). *B.L.A.Z.E.* [Source code]. GitHub. https://github.com/Isai-JQ/B.L.A.Z.E
+4. B.L.A.Z.E. team. (2026b). *B.L.A.Z.E.: Bambu Lab Automated Zero-Touch Executor* [Pitch slides, internal document]. FrED Factory Lab, Tecnológico de Monterrey.
+5. Bambu Lab. (n.d.). *Bambu Lab P1S*. Retrieved November 10, 2026, from https://bambulab.com/en/p1
+6. DiCristofaro, A. S. (2026, July 7). *MIT-designed educational factory embraces modern manufacturing*. MIT Department of Mechanical Engineering. https://meche.mit.edu/node/4490
+7. Fab Foundation. (n.d.). *Global community*. Retrieved November 9, 2026, from https://fabfoundation.org/global-community
+8. FrED Factory Lab. (n.d.). *Research areas of the FrED Factory Lab* [One-page summaries, internal document]. Tecnológico de Monterrey.
+9. *How to make a DIY belt conveyor controlled by Arduino* [Video]. (2022, June 5). YouTube. https://www.youtube.com/watch?v=5sep7IT5YgA
+10. MIT FrED Factory. (n.d.). *FrED Factory*. Retrieved November 10, 2026, from https://fredfactory.mit.edu/
+11. SimplyPrint. (n.d.). *The FarmLoop clearing method for AutoPrint*. Retrieved November 9, 2026, from https://help.simplyprint.io/en/article/the-farmloop-clearing-method-for-autoprint-1ttb53x/
+12. Standard Bots. (2024, October 7). *Universal Robots price guide: What to expect (new and used costs)*. https://standardbots.com/articles/universal-robot-price
+13. Tom's Hardware. (2025, August 4). *New auto-ejection tool for Bambu Lab print farms automatically ejects finished 3D prints from the machine*. https://tomshardware.com/3d-printing/new-auto-ejection-tool-for-bambu-lab-print-farms-automatically-ejects-finished-3d-prints-from-the-machine-usd129-kit-includes-auto-door-opener-and-special-bed-surface-for-frictionless-part-ejection
+
 ---
 
 ## 17. Appendix
@@ -574,8 +588,6 @@ The other option is to keep the conveyor short, about 1.3 m, and stack the boxes
 
 *Figure 4. Old roller (right) with cone-shaped ends and a 40-tooth gear on the rod. New roller (left) with flat flanges and a 35 mm middle body.*
 
-![Circuit diagram](figures/circuit_diagram.png)
+The raw test log is the "Parts_Tested" Google Sheet. Charts, Minitab output and the full analysis are in the companion paper *Kinetic Kitchen: Experimental Design and Analysis*.
 
-*Figure 5. Circuit diagram of the prototype, drawn in Cirkit Designer. The parts are listed in section 11.2.*
-
-`[TODO: add the laser cut drawing, photos of the arms and boxes once built, and the raw test log.]`
+`[TODO: add the circuit diagram, the laser cut drawing, and photos of the arms and boxes.]`

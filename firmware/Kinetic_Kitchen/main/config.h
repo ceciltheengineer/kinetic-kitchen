@@ -114,6 +114,10 @@
 #define KK_CELL_BOX     { 2, 4 }              // which box each load cell sits under
 #define KK_ARM_CROSS_MM      150.0f  // extra belt travel so the part slides along the arm
 #define KK_END_OVERSHOOT_MM  150.0f  // extra belt travel so the part drops off the end
+// Belt run multiplier per box (boxes 1..5). Box 3 has no load cell, so the
+// belt cannot tell when the part landed; it runs twice the planned distance
+// so a part that sticks on the arm still reaches the box.
+#define KK_BOX_RUN_FACTOR    { 1.0f, 1.0f, 2.0f, 1.0f, 1.0f }
 #define KK_DIR_FORWARD_LEVEL 0       // DIR pin level that moves the belt toward box 5
 
 // ---------------------------------------------------------------------
@@ -127,8 +131,16 @@
 #define KK_MICROSTEPS          1      // MS1-MS3 not wired = full step. CHECK on the driver
 #define KK_PULLEY_RATIO        2.0f   // 40T on the roller / 20T on the motor
 #define KK_ROLLER_DIAMETER_MM  30.0f
-#define KK_BELT_SPEED_MM_S     75.0f    // was 150: the GT2 belt skipped teeth
-#define KK_BELT_ACCEL_MM_S2    200.0f   // was 600: gentle start and stop, less skipping
+// Measured belt calibration (19 Nov): a 200 mm move went 245 mm and 4 x 50 mm
+// went 222 mm. Fit: real = 1.263 x calculated - 7.7 mm per move. The scale
+// covers the belt thickness on the roller; the loss is slack/slip at each start.
+// To recalibrate: move A mm once and B mm in N moves, measure, refit.
+#define KK_BELT_MM_SCALE       1.263f
+#define KK_BELT_START_LOSS_MM  7.7f
+// Speeds are true belt mm/s now. 95 keeps the same physical speed as before
+// the calibration (75 uncalibrated); 150 uncalibrated made the GT2 belt skip.
+#define KK_BELT_SPEED_MM_S     95.0f
+#define KK_BELT_ACCEL_MM_S2    250.0f
 
 // ---------------------------------------------------------------------
 // TMC2209 UART (only for a TMC2209; the A4988 has no UART and its current is

@@ -37,6 +37,7 @@ void  router_get_status(router_status_t *out);
 bool  router_route(int start, int box);
 void  router_stop(void);
 bool  router_jog(float mm, int dir);
+bool  router_spin(int dir);              // motor on at belt speed until Stop (10 min cap)
 bool  router_arm(int box, bool out);
 bool  router_motor_off(void);
 

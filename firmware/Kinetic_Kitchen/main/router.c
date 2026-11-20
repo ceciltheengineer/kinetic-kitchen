@@ -19,7 +19,9 @@
 
 static const char *TAG = "router";
 
-typedef enum { CMD_ROUTE, CMD_STOP, CMD_JOG, CMD_ARM, CMD_MOTOR_OFF } cmd_type_t;
+typedef enum { CMD_ROUTE, CMD_STOP, CMD_JOG, CMD_SPIN, CMD_ARM, CMD_MOTOR_OFF } cmd_type_t;
+
+#define SPIN_MAX_S 600   // motor on mode stops by itself after 10 minutes
 
 typedef struct {
     cmd_type_t type;
@@ -134,9 +136,13 @@ static void do_route(int start, int box)
     bool  has_cell = boxes_has_cell(box);
     float from = s_starts[start - 1];
     float to   = s_boxes[box - 1];
-    int   dir  = (to - from) >= 0.0f ? 1 : -1;
+    // Start right in front of the box (start 1 -> box 2, 2 -> 3, 3 -> 4): run
+    // the belt toward box 1, so the arm only needs its smaller out angle
+    // instead of swinging all the way out into the part.
+    int   dir  = (to - from) > 0.0f ? 1 : -1;
     float dist = fabsf(to - from);
-    float expected = dist + (has_arm ? KK_ARM_CROSS_MM : KK_END_OVERSHOOT_MM);
+    static const float run_factor[KK_NUM_BOXES] = KK_BOX_RUN_FACTOR;
+    float expected = (dist + (has_arm ? KK_ARM_CROSS_MM : KK_END_OVERSHOOT_MM)) * run_factor[box - 1];
 
     xSemaphoreTake(s_lock, portMAX_DELAY);
     s_st.expected_mm = expected;
@@ -170,6 +176,10 @@ static void do_route(int start, int box)
     }
 
     int64_t above_since = 0;
+    // When the part reached the box: first weight on a load cell box, or the
+    // belt passing the box position elsewhere. The log shows Send to arrival,
+    // without the overshoot, settle check and arm return that follow.
+    int64_t t_arrive = 0;
 #if KK_SIM_MODE
     bool sim_dropped = false;
 #endif
@@ -197,6 +207,7 @@ static void do_route(int start, int box)
                 if (above_since == 0) {
                     above_since = t;
                 } else if (t - above_since >= KK_CONFIRM_MS) {
+                    t_arrive = above_since;
                     stepper_stop();   // 4. Stop: the part has landed
                     break;
                 }
@@ -207,8 +218,14 @@ static void do_route(int start, int box)
                 result = RES_TIMEOUT;   // ran out of belt travel
                 break;
             }
-        } else if (!stepper_is_moving()) {
-            break;   // 4. Stop: planned distance done
+        } else {
+            if (t_arrive == 0 && stepper_mm_moved() >= dist) {
+                t_arrive = t;
+            }
+            if (!stepper_is_moving()) {
+                if (t_arrive == 0) t_arrive = t;
+                break;   // 4. Stop: planned distance done
+            }
         }
         vTaskDelay(pdMS_TO_TICKS(20));
     }
@@ -243,7 +260,8 @@ static void do_route(int start, int box)
     stepper_enable(false);   // motor off between prints
 
     e.result = result;
-    e.duration_ms = (uint32_t)(now_ms() - s_t0_ms);
+    // Delivered: Send to arrival. Anything else: the whole attempt.
+    e.duration_ms = (uint32_t)(((result == RES_OK && t_arrive) ? t_arrive : now_ms()) - s_t0_ms);
     e.g_after = boxes_grams(box);
     runlog_add(&e);
 
@@ -274,15 +292,19 @@ static void do_route(int start, int box)
     }
 }
 
-static void do_jog(float mm, int dir)
+static void do_jog(float mm, int dir, bool spin)
 {
     char msg[64];
-    snprintf(msg, sizeof msg, "Jog %.0f mm %s", mm, dir > 0 ? "forward" : "reverse");
+    if (spin) {
+        snprintf(msg, sizeof msg, "Motor on, %s, until Stop", dir > 0 ? "forward" : "reverse");
+    } else {
+        snprintf(msg, sizeof msg, "Jog %.0f mm %s", mm, dir > 0 ? "forward" : "reverse");
+    }
     set_state(RS_RUNNING, msg);
     xSemaphoreTake(s_lock, portMAX_DELAY);
     s_st.start = 0;
     s_st.box = 0;
-    s_st.expected_mm = mm;
+    s_st.expected_mm = spin ? 0.0f : mm;
     xSemaphoreGive(s_lock);
     s_t0_ms = now_ms();
     if (!stepper_move_mm(mm, dir)) {
@@ -298,7 +320,7 @@ static void do_jog(float mm, int dir)
     }
     while (stepper_is_moving()) vTaskDelay(pdMS_TO_TICKS(10));
     stepper_enable(false);
-    set_state(r == RES_ESTOP ? RS_ESTOP : RS_IDLE, "Jog done");
+    set_state(r == RES_ESTOP ? RS_ESTOP : RS_IDLE, spin ? "Motor stopped" : "Jog done");
 }
 
 static void router_task(void *arg)
@@ -314,7 +336,12 @@ static void router_task(void *arg)
                 break;
             case CMD_JOG:
                 s_busy = true;
-                do_jog(c.f, c.a);
+                do_jog(c.f, c.a, false);
+                s_busy = false;
+                break;
+            case CMD_SPIN:
+                s_busy = true;
+                do_jog(KK_BELT_SPEED_MM_S * SPIN_MAX_S, c.a, true);
                 s_busy = false;
                 break;
             case CMD_ARM:
@@ -396,6 +423,15 @@ bool router_jog(float mm, int dir)
         return false;
     }
     cmd_t c = { .type = CMD_JOG, .a = dir, .f = mm };
+    return xQueueSend(s_q, &c, 0) == pdTRUE;
+}
+
+bool router_spin(int dir)
+{
+    if (s_busy) {
+        return false;
+    }
+    cmd_t c = { .type = CMD_SPIN, .a = dir >= 0 ? 1 : -1 };
     return xQueueSend(s_q, &c, 0) == pdTRUE;
 }
 

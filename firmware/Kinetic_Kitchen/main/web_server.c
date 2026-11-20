@@ -99,9 +99,12 @@ static esp_err_t h_status(httpd_req_t *req)
     P("],\"speed\":%.0f,\"arm_cross\":%.0f,\"end_over\":%.0f},",
       KK_BELT_SPEED_MM_S, KK_ARM_CROSS_MM, KK_END_OVERSHOOT_MM);
 
-    P("\"belt\":{\"moving\":%s,\"dir\":%d,\"mm\":%.1f,\"enabled\":%s},",
+    float motor_revs = stepper_mm_moved() * stepper_steps_per_mm()
+                     / (float)(KK_MOTOR_STEPS_PER_REV * KK_MICROSTEPS);
+    P("\"belt\":{\"moving\":%s,\"dir\":%d,\"mm\":%.1f,\"enabled\":%s,"
+      "\"motor_revs\":%.2f,\"roller_revs\":%.2f},",
       stepper_is_moving() ? "true" : "false", stepper_dir(), stepper_mm_moved(),
-      stepper_enabled() ? "true" : "false");
+      stepper_enabled() ? "true" : "false", motor_revs, motor_revs / KK_PULLEY_RATIO);
     P("\"arms\":[%s,%s,%s],", arm_is_out(2) ? "true" : "false",
       arm_is_out(3) ? "true" : "false", arm_is_out(4) ? "true" : "false");
     P("\"arm_deg\":[%.0f,%.0f,%.0f],", arm_angle_now(2), arm_angle_now(3), arm_angle_now(4));
@@ -215,6 +218,23 @@ static esp_err_t h_jog(httpd_req_t *req)
     }
     if (!router_jog(mm, dir >= 0 ? 1 : -1)) {
         return reply_fail(req, "409 Conflict", "could not jog");
+    }
+    return reply_ok(req);
+}
+
+// Motor on mode: belt speed until /api/stop, for timing revolutions.
+static esp_err_t h_spin(httpd_req_t *req)
+{
+    if (!KK_MOTOR_CONNECTED) {
+        return reply_fail(req, "409 Conflict", "motor not connected (KK_MOTOR_CONNECTED is 0)");
+    }
+    int dir = 1;
+    q_int(req, "dir", &dir);
+    if (router_busy()) {
+        return reply_fail(req, "409 Conflict", "the belt is already running");
+    }
+    if (!router_spin(dir >= 0 ? 1 : -1)) {
+        return reply_fail(req, "409 Conflict", "could not start the motor");
     }
     return reply_ok(req);
 }
@@ -384,6 +404,7 @@ void web_server_start(void)
         { .uri = "/api/calibrate", .method = HTTP_POST, .handler = h_calibrate },
         { .uri = "/api/box/clear", .method = HTTP_POST, .handler = h_box_clear },
         { .uri = "/api/jog",       .method = HTTP_POST, .handler = h_jog },
+        { .uri = "/api/spin",      .method = HTTP_POST, .handler = h_spin },
         { .uri = "/api/arm",       .method = HTTP_POST, .handler = h_arm },
         { .uri = "/api/armcfg",    .method = HTTP_POST, .handler = h_armcfg },
         { .uri = "/api/servotest", .method = HTTP_POST, .handler = h_servotest },

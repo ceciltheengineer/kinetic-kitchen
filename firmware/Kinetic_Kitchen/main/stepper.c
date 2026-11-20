@@ -117,7 +117,7 @@ void stepper_init(void)
     stepper_enable(false);
 
     s_steps_per_mm = (float)KK_MOTOR_STEPS_PER_REV * (float)KK_MICROSTEPS * KK_PULLEY_RATIO
-                     / ((float)M_PI * KK_ROLLER_DIAMETER_MM);
+                     / ((float)M_PI * KK_ROLLER_DIAMETER_MM * KK_BELT_MM_SCALE);
 #if KK_MOTOR_TEST || KK_DRIVER_CHECK
     build_ramp(KK_TEST_SPEED_MM_S, KK_TEST_ACCEL_MM_S2);
 #else
@@ -162,7 +162,8 @@ bool stepper_move_mm(float mm, int dir)
     if (s_running || mm <= 0.0f) {
         return false;
     }
-    uint32_t steps = (uint32_t)(mm * s_steps_per_mm + 0.5f);
+    // Each move loses a few mm to slack at the start; add them back.
+    uint32_t steps = (uint32_t)((mm + KK_BELT_START_LOSS_MM) * s_steps_per_mm + 0.5f);
     if (steps == 0) {
         return false;
     }

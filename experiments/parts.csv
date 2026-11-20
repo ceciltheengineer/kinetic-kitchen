@@ -1,0 +1,25 @@
+part_id,shape,height,color,weight_g
+1,triangular,medium,pink,23.98
+2,circular,short,dark blue,36.75
+3,abnormal,short,gold,48.81
+4,circular,short,red,20.90
+5,cubical,short,lime green,24.70
+6,abnormal,tall,yellow,15.61
+7,abnormal,short,grey,20.19
+8,triangular,short,purple,9.43
+9,abnormal,short,pink,10.07
+10,abnormal,short,black,13.05
+11,cubical,short,black,7.42
+12,cubical,short,gold,11.00
+13,cubical,short,green,9.13
+14,abnormal,short,pink/gold,6.80
+15,circular,short,dark blue,5.68
+16,circular,short,lime green,8.29
+17,circular,medium,teal,10.74
+18,abnormal,medium,black,7.15
+19,triangular,tall,gold,18.32
+20,triangular,tall,grey,29.79
+21,abnormal,medium,white,19.27
+22,triangular,tall,blue,11.07
+23,circular,medium,white,31.34
+24,abnormal,tall,grey,13.07
