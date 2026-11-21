@@ -20,3 +20,12 @@ sdkconfig.old
 # Local Wi-Fi credentials
 wifi_secrets.h
 *.bak
+
+# Team-only material, kept local and out of the public repo
+Claude outputs/
+Full_script_v2.pdf
+*_script*.pdf
+KineticKitchen_Pitch_Deck.md
+KineticKitchen_Report.pdf
+kk_notion_qr.png
+figures/team/

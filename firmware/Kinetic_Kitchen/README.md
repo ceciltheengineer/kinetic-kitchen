@@ -8,17 +8,30 @@ Built with ESP-IDF v6.1 in VS Code.
 
 * Serves the dashboard at `http://192.168.4.1` (hotspot) or at the IP it gets
   from the laptop hotspot.
-* Runs a route: pick a start position and a box, the arm for that box swings
-  out, the belt runs toward the box, the belt stops when the load cell sees the
-  part land (boxes 2 and 4) or after the planned distance (boxes 1, 3, 5), the
-  arm comes back and the motor is released. A route is aborted after 15 s.
+* Runs a route:
+  1. You pick a start position and a box.
+  2. The arm for that box swings out to meet the part at 65°: the servo goes to
+     65° or 115°, depending on belt direction.
+  3. The belt runs toward the box. When the start is right in front of the box
+     (start 1 to box 2, 2 to 3, 3 to 4), the belt runs toward box 1 instead, so the
+     arm never swings through the part.
+  4. The belt stops when the load cell sees the part land (boxes 2 and 4), or after
+     the planned distance (boxes 1, 3, 5). Box 3 runs twice its distance
+     (`KK_BOX_RUN_FACTOR`).
+  5. The arm comes back and the motor is released.
+
+  A route is aborted after 15 s.
 * Boxes 2 and 4 toggle occupied / vacant from their load cell (above 3 g for
   1 s, below 2 g for 2 s, then re-zero). Boxes 1, 3 and 5 are always available.
 * Refuses a route to an occupied box.
-* Logs every run (route, result, time, weight before and after) and exports it
-  as CSV for the 150-run test.
-* Bring-up controls on the page: jog the belt, move each arm, tare and
-  calibrate each load cell.
+* Logs every run and exports the log as CSV: route, result, time from Run to the
+  part's arrival, weight before and after, and belt travel.
+* Bring-up controls on the page:
+  * jog the belt;
+  * run the motor continuously, with a live revolution counter;
+  * set each arm's 0 point and out angle;
+  * test a servo;
+  * tare and calibrate each load cell.
 
 ## Simulation mode
 
@@ -62,15 +75,21 @@ The default `build/` folder inside the project works (it is already in
 `.gitignore`). Because the project lives in OneDrive, the build output syncs
 too; if that becomes a nuisance, point the ESP-IDF extension setting "Build
 directory path" (`idf.buildPath`) at a short folder outside OneDrive such as
-`C:\Users\nanot\kk-build`. Keep any build path short: ESP-IDF's mbedtls
+`C:\kk-build`. Keep any build path short: ESP-IDF's mbedtls
 sources overflow the Windows 260-character path limit in deep folders.
 
 ## Wi-Fi
 
-In `main/config.h`:
-
 * `KK_WIFI_STA_SSID` / `KK_WIFI_STA_PASS`: the 2.4 GHz hotspot from the
-  laptop. If set, the ESP32 joins it first and prints its IP on the monitor.
+  laptop. Put them in `main/wifi_secrets.h`, which is git-ignored and you create
+  yourself:
+
+  ```c
+  #define KK_WIFI_STA_SSID "name"
+  #define KK_WIFI_STA_PASS "password"
+  ```
+
+  If set, the ESP32 joins that network first and prints its IP on the monitor.
 * If the SSID is empty, or joining fails within 15 s, the ESP32 starts its own
   hotspot `KineticKitchen` (password `kinetic123`) and the page is at
   `http://192.168.4.1`.
@@ -119,19 +138,26 @@ the ESP32's 3V3 and GND, and another across the servo 5 V rail.
 Do not power the board from the buck converter and USB at the same time:
 unplug the buck's 5 V wire while the USB cable is connected for flashing.
 
-## Things to measure before the Expo
+## Calibration
 
-Search `PLACEHOLDER` in `main/config.h`.
+These are set for the prototype as built. Redo them after a mechanical change.
 
-1. Belt positions of the three starts and five boxes (`KK_POS_STARTS`,
-   `KK_POS_BOXES`), in mm, with 0 at box 2.
-2. Microstep setting on the A4988 (`KK_MICROSTEPS`) and the belt direction.
-   Jog +50 mm from the page and check the belt moves toward box 5 by 50 mm.
-3. Servo rest and out angles for each arm.
-4. Load cell scale: tare the empty box, put a known mass in it, type the grams
-   on the page and press Calibrate. The value is saved to flash.
-5. Occupied / vacant thresholds (`KK_OCCUPIED_G`, `KK_VACANT_G`) from real
-   readings.
+* **Belt distance.** The belt moves 1.263 times the distance the roller formula
+  gives (`KK_BELT_MM_SCALE`), and each move loses about 7.7 mm to slack at the start
+  (`KK_BELT_START_LOSS_MM`). Both were measured on Nov 19: one 200 mm jog went 245 mm,
+  and four 50 mm jogs went 222 mm in total. To redo it:
+  1. Set both values to 1.0 and 0.
+  2. Jog one long move and several short ones, and measure each.
+  3. Fit `real = scale × asked − loss`.
+* **Belt speed.** `KK_BELT_SPEED_MM_S` is true belt speed: 95 mm/s, measured as
+  96.4 mm/s (12.45 s per 1200 mm belt lap). Use "Motor on" in Bring-up to time laps.
+* **Positions.** The three starts and five boxes are in `KK_POS_STARTS` and
+  `KK_POS_BOXES`, in mm, with 0 at box 2.
+* **Arms.** Set each arm's 0 point from the dashboard (Bring-up, Arm 0 point): nudge
+  the arm flush with the conveyor and press Set as 0. The out angle is under Arm
+  angles. Both are saved in flash.
+* **Load cells.** Tare the empty box, put a known mass in it, type the grams on the
+  page and press Calibrate. The scale is saved to flash.
 
 ## Arm rest position at power-up
 
@@ -168,8 +194,11 @@ the firmware separates slow creep from real changes instead:
 | POST | `/api/calibrate?box=2&grams=100` | set the scale from a known mass |
 | POST | `/api/box/clear?box=2` | clear a "needs check" flag |
 | POST | `/api/jog?mm=50&dir=1` | move the belt (dir 1 toward box 5, -1 toward box 1) |
+| POST | `/api/spin?dir=1` | motor on at belt speed until `/api/stop` (10 min cap) |
 | POST | `/api/arm?box=3&out=1` | move an arm |
-| POST | `/api/armcfg?box=3&rest=5&out=50` | set and save an arm's rest and out angles |
+| POST | `/api/armcfg?box=3&rest=0&out=65` | set and save an arm's rest and out angles |
+| POST | `/api/armzero?box=3&deg=20[&save=1]` | preview, or save, an arm's 0 point (servo angle) |
+| POST | `/api/servotest?box=3&deg=90` | drive one servo to a raw angle and read the pulse back |
 | POST | `/api/motor?on=0` | release the stepper |
 | GET | `/api/log?n=20` | last n runs as JSON |
 | GET | `/api/log.csv` | all runs as CSV |
@@ -185,7 +214,6 @@ once the bed-clear signal exists (improvement B1).
 firmware/Kinetic_Kitchen/
   CMakeLists.txt         ESP-IDF project
   sdkconfig.defaults     target (ESP32), flash size, partition table, stack sizes
-  .vscode/               ESP-IDF extension settings (generated by VS Code)
   main/
     config.h             pins, geometry, thresholds, Wi-Fi, simulation flag
     main.c               boot, heartbeat LED
