@@ -29,7 +29,7 @@ Our school accepts results within 5% of a stated target. Each result is reported
 | Factor | Levels | Notes |
 | :--- | :--- | :--- |
 | Start position | 3 (positions 1, 2, 3) | Stand in for the three Bambu Lab P1S printers |
-| Destination box | 5 (boxes 1 to 5) | Boxes 1 and 5 are reached by the belt alone. Boxes 2, 3, 4 need a 45° servo arm. |
+| Destination box | 5 (boxes 1 to 5) | Boxes 1 and 5 are reached by the belt alone. Boxes 2, 3, 4 need a servo arm at 65°. |
 | Part | 24 printed parts | Four shapes (triangular, circular, cubical, irregular), three heights, 5.68 g to 48.81 g |
 
 Every combination of start position and box is a route, which gives 15 routes. This is a full factorial design on route (3 × 5), with part as a blocking factor that adds shape and weight variety.
@@ -56,7 +56,7 @@ With zero failures, 149 runs are enough to show a rate of at least 98% with 95% 
 
 ## 4. Equipment and Materials
 
-- Prototype: 65 cm conveyor, NEMA 17 stepper with A4988 driver (full steps, Vref 1.68 V), ESP32, three SG90 servo arms at 45°, five boxes.
+- Prototype: 65 cm conveyor, NEMA 17 stepper with A4988 driver (full steps, Vref 1.68 V), ESP32, three SG90 servo arms at 65°, five boxes.
 - Two 1 kg bar load cells with HX711 amplifiers under boxes 2 and 4.
 - Lab scale, stopwatch and the firmware time log.
 - 24 printed test parts (`parts.csv`).
@@ -203,7 +203,7 @@ Every part that landed in box 2 or 4 was shown as occupied. The one "not occupie
 | After slowdown, first lap | 12.80 | 93.8 | 63% |
 | After slowdown, steady (all routing runs) | 12.45 | 96.4 | 64% |
 
-The step rate was lowered on purpose to reduce belt slip, cutting speed by 26.6%. In full-step mode 96.4 mm/s is about 409 steps/s.
+The step rate was lowered on purpose to reduce belt slip, cutting speed by 26.6%. In full-step mode 96.4 mm/s is about 324 steps/s (the belt moves 1.263 times the distance the roller formula gives, measured on Nov 19).
 
 ### 8.6 Load limits
 
@@ -234,7 +234,7 @@ With large enough boxes the estimated rate is 98.8%, but the lower bound is 97.0
 - Parts were placed by hand, so the test covers routing, not catching a part ejected from a printer.
 - Success for boxes 1, 3 and 5 was judged by eye (no load cell).
 - Times in box 2 and 4 tabs were logged to 0.01 s, the others to 0.1 s. Pos 2 -> Box 4 parts 7 and 10 were logged as a flat 7 s.
-- Runs per route ranged from 8 to 24, so per-route rates are less certain than the overall rate.
+- Runs per route ranged from 9 to 24, so per-route rates are less certain than the overall rate.
 - The heaviest routing part was 48.81 g. Only the load tests reached 250 g and above.
 - The conveyor load test used one 1 kg trial. Power and 30-minute drift were not measured.
 

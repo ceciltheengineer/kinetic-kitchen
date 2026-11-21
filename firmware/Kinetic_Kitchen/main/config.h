@@ -211,5 +211,5 @@
 // ---------------------------------------------------------------------
 // Routing
 // ---------------------------------------------------------------------
-#define KK_ROUTE_TIMEOUT_MS 15000   // longest route (start 3 to box 1) is about 9 s at 75 mm/s
+#define KK_ROUTE_TIMEOUT_MS 15000   // longest route (start 3 to box 1) is about 6 s at 95 mm/s; box 3 runs 2x
 #define KK_LOG_CAPACITY     200

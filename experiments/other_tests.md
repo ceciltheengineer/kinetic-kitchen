@@ -7,7 +7,7 @@ Source: "Parts_Tested" Google Sheet, Other Tests tab.
 - Result: 1000 g carried the full length (1 trial). Only load tried, so the limit was not reached.
 
 ## Test 2: Arm maximum load
-- Method: arm at 45°, load placed at the start farthest from the box, raise the load until it fails.
+- Method: arm at 65°, load placed at the start farthest from the box, raise the load until it fails.
 - Arm mapping assumed: arm 1 = box 2, arm 2 = box 3, arm 3 = box 4.
 
 | Arm | Box | Passes | Fails at |
@@ -45,7 +45,7 @@ Box 2 reads about 8% high on heavier parts: redo its HX711 calibration factor.
 | After slowdown, lap 1 | 12.80 | 93.8 | 63% |
 | After slowdown, steady (used in testing) | 12.45 | 96.4 | 64% |
 
-Step rate lowered on purpose to reduce belt slip (−26.6%). Driver: A4988, full steps, Vref 1.68 V, R100 sense resistors (about 1.5 A per coil). 96.4 mm/s ≈ 409 steps/s.
+Step rate lowered on purpose to reduce belt slip (−26.6%). Driver: A4988, full steps, Vref 1.68 V, R100 sense resistors (about 1.5 A per coil). 96.4 mm/s ≈ 324 steps/s (belt moves 1.263 times the roller formula distance).
 
 ## Test 6: Load cell limit
 1 kg bar cells under boxes 2 and 4. Parts over 1 kg need a 2 kg or 5 kg cell.
